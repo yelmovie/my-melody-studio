@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>나만의 가락 만들기</title>
+<meta name="description" content="리듬 카드와 실로폰·피아노·바이올린 등 여러 악기로 24마디 가락을 만들고, 악보와 함께 감상하고, MP3와 악보 그림으로 내는 초등 음악 작곡 놀이터">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Music&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+</head>
+<body>
+
+<!-- 아이콘 묶음: 기기마다 모양이 다른 이모지 대신 직접 그린 선 아이콘 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24"><path d="M3 6h9M3 12h9M3 18h9" /><path d="M15 7.5v9l6.5-4.5z" fill="currentColor"/></symbol>
+    <symbol id="i-metro" viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M12 15l5-8"/><path d="M8 17h8"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M3 11.5 21 3l-6.5 18-3-7.5z"/><path d="M11.5 13.5 21 3"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><rect x="3" y="7" width="8" height="11" rx="2"/><rect x="13" y="7" width="8" height="11" rx="2" stroke-dasharray="2.5 2"/><path d="M7 4h10l-2-2M17 4l-2 2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></symbol>
+    <symbol id="i-erase" viewBox="0 0 24 24"><path d="m4 15 9-9 7 7-7 7H8z"/><path d="M9 10l7 7M8 20h12"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></symbol>
+    <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 4 4 3-3 4 4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v10M12 4v16M16 4v10"/><path d="M7 4h2v8H7zM15 4h2v8h-2z" fill="currentColor"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3c.6 4 2 5.4 6 6-4 .6-5.4 2-6 6-.6-4-2-5.4-6-6 4-.6 5.4-2 6-6z" fill="currentColor" stroke="none"/><path d="M19 15c.3 1.6.9 2.2 2.5 2.5-1.6.3-2.2.9-2.5 2.5-.3-1.6-.9-2.2-2.5-2.5 1.6-.3 2.2-.9 2.5-2.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <!-- 악기 종류 아이콘 -->
+    <symbol id="i-bars" viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="15" rx="2"/><rect x="10" y="7" width="4" height="12" rx="2"/><rect x="17" y="9" width="4" height="9" rx="2"/></symbol>
+    <symbol id="i-strings" viewBox="0 0 24 24"><path d="M10 9c-3 0-4 2-3 4-2 1-2 5 1 6 2 .7 4 0 5-1 1 1 3 1.7 5 1 3-1 3-5 1-6 1-2 0-4-3-4" transform="translate(-2 1)"/><path d="M14 9V2.5M12.5 3.5h3"/><path d="M12 14h4"/></symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24"><rect x="2.5" y="10" width="19" height="4" rx="2"/><circle cx="8" cy="12" r=".9" fill="currentColor"/><circle cx="12" cy="12" r=".9" fill="currentColor"/><circle cx="16" cy="12" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-brass" viewBox="0 0 24 24"><path d="M3 12h11"/><path d="M14 8v8l7 4V4z"/><path d="M6 12V8h4v4"/></symbol>
+    <symbol id="i-pluck" viewBox="0 0 24 24"><circle cx="9" cy="15" r="5"/><circle cx="9" cy="15" r="1.5"/><path d="M12.5 11.5 20 4M18 3l3 3"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===== 맨 위: 로고 + 악기 탭 ===== -->
+<header class="topbar">
+  <div class="logo"><svg class="ic logo-ic"><use href="#i-music"/></svg><span>나만의 가락 만들기</span></div>
+  <nav class="inst-tabs" id="instTabs" aria-label="악기 고르기"></nav>
+  <div class="top-right">
+    <label class="vol"><svg class="ic"><use href="#i-volume"/></svg><input type="range" id="vol" min="0" max="100" value="80" aria-label="소리 크기"></label>
+    <button class="btn btn--soft" id="btnHelp"><svg class="ic"><use href="#i-help"/></svg><span>작곡 도우미</span></button>
+    <button class="btn btn--soft" id="btnShow"><svg class="ic"><use href="#i-headphones"/></svg><span>감상실</span></button>
+    <div class="down-wrap">
+      <button class="btn btn--accent" id="btnDown" aria-haspopup="true" aria-expanded="false"><svg class="ic"><use href="#i-download"/></svg><span>내 곡 받기</span></button>
+      <div class="down-menu" id="downMenu" hidden>
+        <button class="down-item" id="downMp3"><svg class="ic"><use href="#i-music"/></svg><span>소리 파일<small>MP3로 듣기·내기</small></span></button>
+        <button class="down-item" id="downPng"><svg class="ic"><use href="#i-image"/></svg><span>악보 그림<small>PNG로 보기·내기</small></span></button>
+        <p class="down-note" id="downNote"></p>
+      </div>
+    </div>
+    <button class="btn btn--icon" id="btnFull" aria-label="전체 화면"><svg class="ic"><use href="#i-full"/></svg></button>
+  </div>
+</header>
+
+<!-- ===== 곡 정보 ===== -->
+<section class="info-row" aria-label="곡 정보">
+  <input class="title-input" id="inTitle" maxlength="40" placeholder="곡 제목을 지어 주세요" autocomplete="off" aria-label="곡 제목">
+  <input class="field" id="inNum" maxlength="12" placeholder="학번" autocomplete="off" inputmode="numeric" aria-label="학번">
+  <input class="field" id="inName" maxlength="12" placeholder="이름" autocomplete="off" aria-label="이름">
+  <button class="pill" id="btnKey"><svg class="ic"><use href="#i-key"/></svg><b id="keyName">다장조</b><svg class="ic sm"><use href="#i-down"/></svg></button>
+  <button class="pill" id="btnBeat"><svg class="ic"><use href="#i-metro"/></svg><span class="lbl">박자·빠르기</span> <b id="beatName">4/4 · 보통 빠르게</b><svg class="ic sm"><use href="#i-down"/></svg></button>
+  <button class="pill" id="btnIntent"><svg class="ic"><use href="#i-chat"/></svg><span class="lbl">작곡 의도</span> <b id="intentCount">0/500</b></button>
+</section>
+
+<!-- ===== 악보 ===== -->
+<section class="score-card" aria-label="내 악보">
+  <div class="score-box" id="scoreBox"></div>
+  <div class="progress-strip">
+    <button class="btn btn--primary" id="btnPlayAll"><svg class="ic"><use href="#i-play"/></svg><span>처음부터 듣기</span></button>
+    <button class="btn" id="btnPlayLine"><svg class="ic"><use href="#i-line"/></svg><span>이 줄만</span></button>
+    <button class="btn" id="btnMetro" aria-pressed="false"><svg class="ic"><use href="#i-metro"/></svg><span>박자</span></button>
+    <div class="beat-dots" id="beatDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="meter"><div class="meter__fill" id="meterFill"></div></div>
+    <span class="progress-text" id="progressText">완성까지 0%</span>
+    <button class="btn btn--accent submit" id="btnSubmit"><svg class="ic"><use href="#i-send"/></svg><span>완성하고 내기</span></button>
+  </div>
+</section>
+
+<!-- ===== 리듬 카드 + 도구 ===== -->
+<!-- ===== 만들기 도구 + 악기 연주 ===== -->
+<section class="play-area">
+  <div class="panel maker">
+    <button class="req-btn" id="btnReq"><svg class="ic"><use href="#i-star"/></svg><span>꼭 넣을 리듬 넣기<small id="reqSub">지금 줄에 한 번에</small></span></button>
+    <div class="rec" id="rec" aria-label="리듬 추천"></div>
+    <div class="maker__group">
+      <div class="cards" id="cards" aria-label="리듬 카드"></div>
+    </div>
+    <div class="maker__group">
+      <div class="tools" aria-label="고치기">
+        <button class="tool" id="btnCopyM"><svg class="ic"><use href="#i-repeat"/></svg><span>앞 마디 따라</span></button>
+        <button class="tool" id="btnCopyL"><svg class="ic"><use href="#i-copy"/></svg><span>앞 줄 따라</span></button>
+        <button class="tool" id="btnDel"><svg class="ic"><use href="#i-erase"/></svg><span>지우기</span></button>
+        <button class="tool" id="btnUndo"><svg class="ic"><use href="#i-undo"/></svg><span>되돌리기</span></button>
+        <button class="tool tool--toggle is-on" id="btnInput" aria-pressed="true"><svg class="ic"><use href="#i-pencil"/></svg><span>악보에 넣기</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="guide">
+    <p class="bubble" id="bubble" role="status">안녕! 나는 도담이에요.</p>
+    <button class="mascot" id="mascot" aria-label="도담이에게 꿀팁 듣기">
+      <svg viewBox="0 0 120 140" width="100%" height="100%" aria-hidden="true">
+        <path d="M78 18 C96 22 108 34 110 52 C100 42 90 40 80 42 Z" fill="#ffd43b" stroke="#4a3f6b" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="74" y="16" width="8" height="66" rx="4" fill="#4a3f6b"/>
+        <ellipse cx="54" cy="96" rx="40" ry="34" fill="#c5b5ff" stroke="#4a3f6b" stroke-width="4"/>
+        <ellipse cx="40" cy="92" rx="5" ry="6.5" fill="#2b2541"/>
+        <ellipse cx="66" cy="92" rx="5" ry="6.5" fill="#2b2541"/>
+        <circle cx="42" cy="89" r="1.8" fill="#fff"/><circle cx="68" cy="89" r="1.8" fill="#fff"/>
+        <ellipse cx="30" cy="104" rx="7" ry="4" fill="#ffa8c5"/><ellipse cx="78" cy="104" rx="7" ry="4" fill="#ffa8c5"/>
+        <path d="M45 106 Q53 114 61 106" fill="none" stroke="#2b2541" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="inst-wrap">
+    <div class="inst-bar">
+      <span class="inst-now" id="instNow">실로폰</span>
+      <button class="btn btn--primary inst-full-btn" id="btnInstFull" aria-pressed="false"><svg class="ic"><use href="#i-full"/></svg><span>크게 보기</span></button>
+      <span class="inst-load" id="instLoad"></span>
+      <span class="spacer"></span>
+      <div class="seg" id="labelSeg" role="group" aria-label="음판에 보일 글자">
+        <button data-mode="solfa" class="is-on">계이름</button>
+        <button data-mode="letter">음이름</button>
+        <button data-mode="kbd">자판</button>
+        <button data-mode="none">숨김</button>
+      </div>
+      <button class="tool tool--row tool--toggle is-on" id="btnScale" aria-pressed="true"><svg class="ic"><use href="#i-sparkle"/></svg><span>음계 도우미</span></button>
+    </div>
+    <div class="stage-wrap"><div class="stage" id="stage"></div></div>
+  </div>
+</section>
+
+<!-- ===== 감상실 ===== -->
+<div class="show" id="show" hidden>
+  <div class="show-top">
+    <button class="btn" id="sClose"><svg class="ic"><use href="#i-back"/></svg><span>만들기로</span></button>
+    <div class="show-head">
+      <h1 id="sTitle">나만의 가락</h1>
+      <div class="show-by" id="sBy"></div>
+    </div>
+    <div class="show-ctrl">
+      <button class="btn btn--primary btn--lg" id="sPlay"><svg class="ic"><use href="#i-play"/></svg><span>감상하기</span></button>
+      <label class="check"><input type="checkbox" id="sAuto"> 다음 곡 이어서 듣기</label>
+      <button class="btn" id="sLoad"><svg class="ic"><use href="#i-folder"/></svg><span>작품 불러오기</span></button>
+      <button class="btn btn--icon" id="sFull" aria-label="전체 화면"><svg class="ic"><use href="#i-full"/></svg></button>
+    </div>
+  </div>
+  <div class="show-body">
+    <aside class="show-side">
+      <h2 class="side-title">작품 목록</h2>
+      <div class="show-list" id="sList"></div>
+      <h2 class="side-title">다른 악기로 들어 보기</h2>
+      <div class="show-inst" id="sInst"></div>
+      <h2 class="side-title">작곡가의 이야기</h2>
+      <div class="intent-bubble" id="sIntent"></div>
+    </aside>
+    <div class="show-score-wrap"><div class="show-score" id="sScore"></div></div>
+  </div>
+  <p class="drop-hint">친구들이 낸 MP3 파일을 이 화면으로 끌어다 놓아도 돼요.</p>
+</div>
+
+<!-- ===== 모달들 ===== -->
+<div class="modal" id="mKey" hidden role="dialog" aria-modal="true" aria-labelledby="mKeyT">
+  <div class="mcard">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mKeyT">조성 고르기</h2>
+    <p class="mdesc">누르면 그 조성의 느낌을 들려줘요. 마음에 드는 느낌을 골라요.</p>
+    <div class="key-group">
+      <h3 class="key-head">장조 <small>밝고 씩씩한 느낌 · 으뜸음 '도'</small></h3>
+      <div class="key-btns" id="keysMajor"></div>
+    </div>
+    <div class="key-group">
+      <h3 class="key-head">단조 <small>슬프거나 신비로운 느낌 · 으뜸음 '라'</small></h3>
+      <div class="key-btns" id="keysMinor"></div>
+    </div>
+    <div class="mfoot"><button class="btn btn--primary" data-close>다 골랐어요</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mBeat" hidden role="dialog" aria-modal="true" aria-labelledby="mBeatT">
+  <div class="mcard mcard--wide">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mBeatT">박자와 빠르기 고르기</h2>
+    <p class="mdesc">먼저 들어 보고 마음에 드는 것을 골라요. 꼭 넣을 리듬은 고른 박자에 맞게 저절로 바뀌어요.</p>
+    <h3 class="key-head">박자 <small>한 마디에 몇 박을 셀까요?</small></h3>
+    <div class="meter-cards" id="meterCards"></div>
+    <h3 class="key-head">빠르기 <small>누르면 꼭 넣을 리듬을 그 빠르기로 들려줘요</small></h3>
+    <div class="tempo-cards" id="tempoCards"></div>
+    <div class="tempo-fine">
+      <span>조금씩 바꾸기</span>
+      <button class="round" id="bpmDown" aria-label="느리게"><svg class="ic sm"><use href="#i-minus"/></svg></button>
+      <span class="tempo__val">♩ = <b id="bpmVal">90</b></span>
+      <button class="round" id="bpmUp" aria-label="빠르게"><svg class="ic sm"><use href="#i-plus"/></svg></button>
+      <span class="tempo__word" id="tempoWord">보통 빠르게</span>
+    </div>
+    <div class="mfoot"><button class="btn btn--primary" data-close>다 골랐어요</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mIntent" hidden role="dialog" aria-modal="true" aria-labelledby="mIntentT">
+  <div class="mcard mcard--wide">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mIntentT">작곡 의도와 느낌</h2>
+    <p class="mdesc">내 가락으로 어떤 느낌이나 장면을 표현했는지 써 봐요. 질문을 누르면 글쓰기를 도와줘요.</p>
+    <div class="prompts" id="prompts"></div>
+    <textarea id="inIntent" maxlength="500" placeholder="예) 봄 소풍 가는 날의 설레는 마음을 표현하고 싶었어요. 그래서 밝은 다장조를 골랐고…"></textarea>
+    <div class="count-row"><span id="intentCount2">0/500</span></div>
+    <div class="mfoot"><button class="btn btn--primary" data-close>다 썼어요</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mSubmit" hidden role="dialog" aria-modal="true" aria-labelledby="mSubmitT">
+  <div class="mcard">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mSubmitT">내기 전에 확인해요</h2>
+    <ul class="checklist" id="ckList"></ul>
+    <div class="save-btns">
+      <button class="btn btn--primary btn--lg" id="btnMp3"><svg class="ic"><use href="#i-music"/></svg><span>MP3 소리 파일 저장</span></button>
+      <button class="btn btn--primary btn--lg" id="btnPng"><svg class="ic"><use href="#i-image"/></svg><span>악보 그림 저장</span></button>
+    </div>
+    <p class="gate" id="submitNote" role="status"></p>
+    <div class="save-prog" id="saveProg" hidden><div class="meter"><div class="meter__fill" id="saveFill"></div></div><span id="saveText"></span></div>
+    <div class="mfoot">
+      <button class="btn" id="btnLoad"><svg class="ic"><use href="#i-folder"/></svg><span>내 MP3 불러와 이어 하기</span></button>
+      <button class="btn" id="btnPractice"><span>연습용 MP3 저장</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mHelp" hidden role="dialog" aria-modal="true" aria-label="작곡 도우미">
+  <div class="mcard mcard--wide help">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <div class="help-tabs" id="helpTabs" role="tablist"></div>
+    <div class="help-page" id="helpPage"></div>
+    <div class="mfoot">
+      <button class="btn" id="helpPrev">이전</button>
+      <button class="btn" id="helpNext">다음</button>
+      <button class="btn btn--primary" data-close>작곡하러 가기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mConfirm" hidden role="dialog" aria-modal="true" aria-labelledby="mConfirmT">
+  <div class="mcard mcard--small">
+    <h2 id="mConfirmT">확인해요</h2>
+    <p class="mdesc" id="confirmMsg"></p>
+    <div class="mfoot">
+      <button class="btn" id="confirmNo">아니요</button>
+      <button class="btn btn--danger" id="confirmYes">네, 바꿀게요</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileOne" accept=".mp3,audio/mpeg" hidden>
+<input type="file" id="fileMany" accept=".mp3,audio/mpeg" multiple hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="confetti" aria-hidden="true"></div>
+
+<script src="js/music.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/score.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
