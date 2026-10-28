@@ -285,6 +285,8 @@
     else if (e.code === 'Backspace' || e.code === 'Delete') { e.preventDefault(); del(); }
     else if (e.code === 'ArrowRight') { e.preventDefault(); select(nextTarget(sel)); }
     else if (e.code === 'ArrowLeft') { e.preventDefault(); select(prevTarget(sel)); }
+    else if (e.code === 'ArrowUp') { e.preventDefault(); stepPitch(1); }
+    else if (e.code === 'ArrowDown') { e.preventDefault(); stepPitch(-1); }
   });
 
   // ---------- 선택 이동 ----------
@@ -465,6 +467,48 @@
   });
   $('#btnDel').addEventListener('click', del);
   $('#btnUndo').addEventListener('click', undo);
+
+  // 고른 음표 높이 바꾸기: 음계 도우미가 켜져 있으면 조성에 맞는 음으로만 한 칸씩
+  const ALL_KEYS = [...WHITE, ...BLACK].sort((a, b) => a - b);
+  function stepPitch(dir) {
+    if (sel.k === null) { toast('먼저 악보에서 바꿀 음표를 눌러 골라요.'); return; }
+    const n = work.ms[sel.m][sel.k];
+    if (n.r) { toast('쉼표는 높이가 없어요. 리듬 카드를 누르면 음표로 바꿀 수 있어요.'); return; }
+    const pool = scaleHelp ? ALL_KEYS.filter(m => M.inScale(m, work.key)) : ALL_KEYS;
+    let p;
+    if (n.p == null) p = doMidi();
+    else {
+      p = dir > 0 ? pool.find(m => m > n.p) : [...pool].reverse().find(m => m < n.p);
+      if (p == null) { sfx('oops'); toast(dir > 0 ? '이보다 높은 음은 없어요.' : '이보다 낮은 음은 없어요.'); return; }
+    }
+    snapshot();
+    work.ms[sel.m][sel.k] = { d: n.d, p };
+    changed();
+    Engine.ensure();
+    Engine.play(work.inst, p, Math.min(n.d * beatSec(), 1.2));
+    flash(p);
+  }
+  $('#btnUp').addEventListener('click', () => stepPitch(1));
+  $('#btnLow').addEventListener('click', () => stepPitch(-1));
+  function renderSelEdit() {
+    const n = sel.k !== null ? work.ms[sel.m][sel.k] : null;
+    $('#selLabel').textContent = !n ? `${sel.m + 1}마디 끝` : n.r ? '고른 쉼표' : n.p == null ? '고른 음표: ?' : `고른 음표: ${M.solfa(n.p, work.key)}`;
+    $('#btnUp').disabled = $('#btnLow').disabled = !n || !!n.r;
+    $('#btnDel').disabled = !n && !work.ms[sel.m].length && sel.m === 0;
+  }
+
+  // 새로 만들기: 악보만 비운다. 되돌리기로 바로 돌아올 수 있다
+  $('#btnNew').addEventListener('click', async () => {
+    if (!(await ask('악보를 처음부터 새로 만들까요? 제목·학번·이름은 그대로 남아요. 실수로 눌렀다면 되돌리기로 돌아올 수 있어요.', '네, 새로 만들게요'))) return;
+    stopPlay();
+    snapshot();
+    work.ms = M.newWork(MB()).ms;
+    sel = { m: 0, k: 0 };
+    listened = false;
+    changed();
+    sfx('success');
+    showGuide({ text: '새 악보예요! 노란 칸 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
+  });
   $('#btnInput').addEventListener('click', () => {
     inputOn = !inputOn;
     $('#btnInput').classList.toggle('is-on', inputOn);
@@ -659,6 +703,7 @@
     renderScore(scoreBox, work, { prefix: 'e', editable: inputOn, sel, labels: true });
     scrollLineIntoView(scoreBox, sel.m);
     renderRec();
+    renderSelEdit();
     updateStatus();
   }
 

@@ -236,7 +236,7 @@ window.Score = (() => {
     if (ev.n.r) s += restSvg(ev);
     else s += ledgersSvg(ev) + accidentalSvg(ev, ctx.key) + headSvg(ev) + stemSvg(ev);
     if (ctx.labels) s += labelSvg(ev, ctx.key);
-    s += tag('rect', { class: 'hit', x: ev.x - 13, y: 20, width: 26, height: 138, fill: 'transparent' });
+    s += tag('rect', { class: 'hit', x: ev.x - 18, y: 14, width: 36, height: 146, fill: 'transparent' });   // 손가락으로 누르기 쉽게 넓게
     return tag('g', { id: `${ctx.prefix}n${m}_${ev.k}`, class: 'nt', 'data-m': m, 'data-k': ev.k }, s);
   }
 

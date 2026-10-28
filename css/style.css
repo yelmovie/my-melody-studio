@@ -170,6 +170,14 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 @keyframes blink { 50% { opacity: .2; } }
 .progress-strip { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-xs) 0; flex-wrap: wrap; }
 .progress-strip .beat-dots { margin-left: var(--space-sm); }
+.sel-edit { display: flex; align-items: center; gap: var(--space-xs); padding: 2px var(--space-xs) 2px var(--space-sm); border-radius: var(--radius-lg); background: #fff4e6; }
+.sel-edit__label { font-family: var(--font-head); font-size: var(--fs-small); color: #c25e00; white-space: nowrap; min-width: 5.5em; }
+.sel-edit__btn { min-height: 44px; padding: 0 var(--space-sm); gap: 4px; font-size: var(--fs-small); }
+.sel-edit__btn .ic { color: var(--color-primary); }
+@media (max-width: 1180px) {
+  .progress-text { display: none; }
+  #btnPlayLine span, #btnMetro span { display: none; }
+}
 .progress-text { font-family: var(--font-head); font-size: var(--fs-small); color: var(--color-text-sub); white-space: nowrap; }
 .meter { flex: 1; height: 14px; background: var(--color-primary-soft); border-radius: var(--radius-pill); overflow: hidden; }
 .meter__fill { height: 100%; width: 0; border-radius: var(--radius-pill); background: linear-gradient(90deg, #9775fa, var(--color-primary)); transition: width .3s; }
