@@ -45,6 +45,7 @@
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-chord" viewBox="0 0 24 24"><ellipse cx="9" cy="18" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="12.5" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="7" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><path d="M12 18V3"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
     <symbol id="i-new" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></symbol>
     <!-- 악기 종류 아이콘 -->
@@ -97,6 +98,7 @@
       <span class="sel-edit__label" id="selLabel">고른 음표</span>
       <button class="btn sel-edit__btn" id="btnUp"><svg class="ic"><use href="#i-up"/></svg><span>높게</span></button>
       <button class="btn sel-edit__btn" id="btnLow"><svg class="ic"><use href="#i-down"/></svg><span>낮게</span></button>
+      <button class="btn sel-edit__btn" id="btnChord" aria-pressed="false"><svg class="ic"><use href="#i-chord"/></svg><span>화음</span></button>
       <button class="btn sel-edit__btn" id="btnDel"><svg class="ic"><use href="#i-erase"/></svg><span>지우기</span></button>
     </div>
     <div class="beat-dots" id="beatDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>

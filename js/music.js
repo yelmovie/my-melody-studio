@@ -5,7 +5,7 @@ window.Music = (() => {
   const BEATS = 4;               // 기본 박자(4/4). 작품마다 work.meter 로 2·3·4 중 고른다
   const METERS = [2, 3, 4];
   const MIN_MIDI = 55, MAX_MIDI = 81;   // 낮은 솔(G3) ~ 높은 라(A5)
-  const DURS = [0.5, 1, 2, 3, 4];
+  const DURS = [0.5, 1, 1.5, 2, 3, 4];
   // 활동지의 꼭 넣을 리듬(4/4 4마디)을 고른 박자에 맞게 옮긴 것
   //  2/4: 같은 리듬을 반으로 나눠 8마디 / 3/4: 마디마다 한 박씩 줄여 4마디
   const REQS = {
@@ -115,8 +115,16 @@ window.Music = (() => {
       const out = []; let b = 0;
       (Array.isArray(meas) ? meas : []).forEach(n => {
         if (!n || !DURS.includes(n.d) || b + n.d > meter) return;
+        const okMidi = v => Number.isInteger(v) && v >= MIN_MIDI && v <= MAX_MIDI;
         if (n.r) out.push({ d: n.d, r: 1 });
-        else out.push({ d: n.d, p: Number.isInteger(n.p) && n.p >= MIN_MIDI && n.p <= MAX_MIDI ? n.p : null });
+        else {
+          const p = okMidi(n.p) ? n.p : null;
+          const note = { d: n.d, p };
+          // 화음 음: 주음과 다른 음만, 최대 3개
+          const c = p == null || !Array.isArray(n.c) ? [] : [...new Set(n.c.filter(v => okMidi(v) && v !== p))].slice(0, 3);
+          if (c.length) note.c = c;
+          out.push(note);
+        }
         b += n.d;
       });
       return out;
@@ -141,7 +149,7 @@ window.Music = (() => {
     for (let m = from; m < to; m++) {
       let off = 0;
       work.ms[m].forEach((n, k) => {
-        out.push({ m, k, beat: (m - from) * meter + off, d: n.d, p: n.r ? null : n.p });
+        out.push({ m, k, beat: (m - from) * meter + off, d: n.d, p: n.r ? null : n.p, c: n.r || n.p == null ? [] : (n.c || []) });
         off += n.d;
       });
     }

@@ -35,6 +35,7 @@ window.Score = (() => {
     4:   { ch: '\u{1D13B}', y: TOP + SP + 25 },        // 온쉼표: 넷째 줄(58)에 매달림 (글자 58~65)
     3:   { ch: '\u{1D13C}', y: MID + 11, dot: true },  // 점2분쉼표
     2:   { ch: '\u{1D13C}', y: MID + 11 },             // 2분쉼표: 가운뎃줄(70) 위에 얹힘 (글자 62~70)
+    1.5: { ch: '\u{1D13D}', y: MID + 24, dot: true },  // 점4분쉼표
     1:   { ch: '\u{1D13D}', y: MID + 24 },             // 4분쉼표: 오선 가운데 (글자 52~89)
     0.5: { ch: '\u{1D13E}', y: MID + 24 },             // 8분쉼표: 오선 가운데 (글자 59~81)
   };
@@ -136,8 +137,17 @@ window.Score = (() => {
         ev.ghost = n.p == null;
         ev.step = ev.ghost ? B4_STEP : M.staffStep(n.p, keyId);
         ev.y = stepY(ev.step);
-        ev.up = !ev.ghost && ev.step < B4_STEP;
         ev.color = ev.ghost ? GHOST : INK;
+        // 화음: 같은 기둥에 머리를 여러 개. 아래에서 위로 정렬
+        const pitches = ev.ghost ? [] : [n.p, ...(n.c || [])].sort((a, b) => a - b);
+        ev.heads = ev.ghost ? [{ step: ev.step, y: ev.y, p: null }] : pitches.map(p => { const st = M.staffStep(p, keyId); return { step: st, y: stepY(st), p }; });
+        // 바로 옆 칸(2도)으로 붙은 머리는 겹치지 않게 오른쪽으로 비켜 놓는다
+        ev.heads.forEach((h, i) => { const prev = ev.heads[i - 1]; h.dx = prev && !prev.dx && h.step - prev.step === 1 ? 13 : 0; });
+        ev.minStep = ev.heads[0].step;
+        ev.maxStep = ev.heads[ev.heads.length - 1].step;
+        ev.yTop = stepY(ev.maxStep);
+        ev.yBot = stepY(ev.minStep);
+        ev.up = !ev.ghost && (ev.minStep + ev.maxStep) / 2 < B4_STEP;
       }
       return ev;
     });
@@ -149,8 +159,8 @@ window.Score = (() => {
     for (let i = 0; i + 1 < evs.length; i++) {
       const a = evs[i], b = evs[i + 1];
       if (!isEighthNote(a.n) || !isEighthNote(b.n) || a.off % 1 !== 0) continue;
-      const up = (a.step + b.step) / 2 < B4_STEP;
-      const end = up ? Math.min(a.y, b.y) - STEM : Math.max(a.y, b.y) + STEM;
+      const up = (a.minStep + a.maxStep + b.minStep + b.maxStep) / 4 < B4_STEP;
+      const end = up ? Math.min(a.yTop, b.yTop) - STEM : Math.max(a.yBot, b.yBot) + STEM;
       a.up = b.up = up;
       a.stemEnd = b.stemEnd = end;
       a.beamed = b.beamed = true;
@@ -169,26 +179,34 @@ window.Score = (() => {
   function ledgersSvg(ev) {
     let s = '';
     const lo = E4_STEP, hi = E4_STEP + 8;              // 오선 아랫줄 ~ 윗줄
-    for (let t = lo - 2; t >= ev.step; t -= 2) s += line(ev.x - 12, stepY(t), ev.x + 12, stepY(t), LINE, 1.4, 'lg');
-    for (let t = hi + 2; t <= ev.step; t += 2) s += line(ev.x - 12, stepY(t), ev.x + 12, stepY(t), LINE, 1.4, 'lg');
+    const wide = ev.heads.some(h => h.dx) ? 13 : 0;
+    for (let t = lo - 2; t >= ev.minStep; t -= 2) s += line(ev.x - 12, stepY(t), ev.x + 12 + wide, stepY(t), LINE, 1.4, 'lg');
+    for (let t = hi + 2; t <= ev.maxStep; t += 2) s += line(ev.x - 12, stepY(t), ev.x + 12 + wide, stepY(t), LINE, 1.4, 'lg');
     return s;
   }
 
   function headSvg(ev) {
     const d = ev.n.d, hollow = d >= 2;
-    const o = { cx: ev.x, cy: ev.y, rx: d === 4 ? 8.6 : 7.6, ry: 5.6, transform: `rotate(-20 ${r1(ev.x)} ${r1(ev.y)})` };
-    if (hollow) Object.assign(o, { class: 'hh', fill: '#fff', stroke: ev.color, 'stroke-width': 2.2 });
-    else Object.assign(o, { class: 'hf', fill: ev.color });
-    let s = tag('ellipse', o);
-    if (d === 3) s += tag('circle', { class: 'dt', cx: ev.x + 13, cy: onLine(ev.step) ? ev.y - SP / 2 : ev.y, r: 2.2, fill: ev.color });
-    return s;
+    const dotted = d === 3 || d === 1.5;
+    const dotX = ev.x + 13 + (ev.heads.some(h => h.dx) ? 13 : 0);
+    return ev.heads.map(h => {
+      const x = ev.x + h.dx;
+      const o = { cx: x, cy: h.y, rx: d === 4 ? 8.6 : 7.6, ry: 5.6, transform: `rotate(-20 ${r1(x)} ${r1(h.y)})` };
+      if (hollow) Object.assign(o, { class: 'hh', fill: '#fff', stroke: ev.color, 'stroke-width': 2.2 });
+      else Object.assign(o, { class: 'hf', fill: ev.color });
+      let s = tag('ellipse', o);
+      if (dotted) s += tag('circle', { class: 'dt', cx: dotX, cy: onLine(h.step) ? h.y - SP / 2 : h.y, r: 2.2, fill: ev.color });
+      return s;
+    }).join('');
   }
 
   function stemSvg(ev) {
     if (ev.n.d === 4) return '';
     const up = ev.up, sx = ev.x + (up ? STEM_DX : -STEM_DX);
-    const end = ev.stemEnd != null ? ev.stemEnd : ev.y + (up ? -STEM : STEM);
-    let s = line(sx, ev.y + (up ? -1 : 1), sx, end, ev.color, 1.6, 'st');
+    // 기둥은 끝 반대쪽 머리에서 시작해 화음 전체를 지나간다
+    const from = up ? ev.yBot : ev.yTop;
+    const end = ev.stemEnd != null ? ev.stemEnd : (up ? ev.yTop - STEM : ev.yBot + STEM);
+    let s = line(sx, from + (up ? -1 : 1), sx, end, ev.color, 1.6, 'st');
     if (ev.n.d === 0.5 && !ev.beamed) s += flagSvg(sx, end, up, ev.color);
     return s;
   }
@@ -202,9 +220,10 @@ window.Score = (() => {
 
   function accidentalSvg(ev, keyId) {
     if (ev.ghost) return '';
-    const a = M.displayAcc(ev.n.p, keyId);
-    if (!a) return '';
-    return text(a, { class: 'ac', x: ev.x + ACC.dx, y: ev.y + ACC.dy[a], 'text-anchor': 'middle', 'font-family': MUSIC_FONT, 'font-size': ACC.size, fill: ev.color });
+    return ev.heads.map(h => {
+      const a = M.displayAcc(h.p, keyId);
+      return a ? text(a, { class: 'ac', x: ev.x + ACC.dx, y: h.y + ACC.dy[a], 'text-anchor': 'middle', 'font-family': MUSIC_FONT, 'font-size': ACC.size, fill: ev.color }) : '';
+    }).join('');
   }
 
   function labelSvg(ev, keyId) {
@@ -213,7 +232,8 @@ window.Score = (() => {
     if (ev.ghost) return text('?', Object.assign(o, { fill: GHOST }));
     // '파♯' 처럼 올림표가 붙으면 ♯ 를 작게 써서 8분음표 사이에서도 덜 겹치게 한다
     const name = M.solfa(ev.n.p, keyId), base = name.replace('♯', '');
-    const inner = esc(base) + (base !== name ? '<tspan font-size="11">♯</tspan>' : '');
+    // 화음이면 '+' 를 작게 붙여 여러 음이 함께 난다는 것을 알려 준다
+    const inner = esc(base) + (base !== name ? '<tspan font-size="11">♯</tspan>' : '') + (ev.n.c && ev.n.c.length ? '<tspan font-size="12" fill="#7048e8">+</tspan>' : '');
     return tag('text', Object.assign(o, { fill: labelColor(ev.n.p) }), inner);
   }
 

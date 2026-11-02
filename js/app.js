@@ -42,6 +42,9 @@
   const beatSec = () => 60 / work.bpm;
   const MB = () => M.meterOf(work);          // 한 마디 박 수 (2·3·4)
   const REQ = () => M.reqFor(MB());          // 고른 박자에 맞춘 꼭 넣을 리듬
+  // 시간표 → 소리 이벤트. 화음이면 같은 시각에 여러 음을 낸다
+  const toEvents = (tl, bs, lead = 0) => tl.filter(x => x.p != null)
+    .flatMap(x => [x.p, ...x.c].map(midi => ({ t: lead + x.beat * bs, midi, dur: x.d * bs })));
   // 받침에 따라 을/를 고르기 (실로폰을 / 피아노를)
   const josa = (w, a, b) => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return w + (c >= 0 && c <= 11171 && c % 28 ? a : b); };
 
@@ -325,6 +328,7 @@
   }
   function editHit(midi) {
     const meas = work.ms[sel.m];
+    if (chordMode && sel.k !== null) { toggleChordTone(midi); return; }
     if (sel.k !== null) {
       snapshot();
       meas[sel.k] = { d: meas[sel.k].d, p: midi };
@@ -360,6 +364,7 @@
   const CARDS = [
     { d: 1, word: '타', beat: '1박', draw: 'q' },
     { d: .5, word: '티', beat: '반 박', draw: 'e' },
+    { d: 1.5, word: '타-이', beat: '1박 반', draw: 'dq' },
     { d: 2, word: '타-아', beat: '2박', draw: 'h' },
     { d: 3, word: '타-아-아', beat: '3박', draw: 'dh' },
     { d: 4, word: '타-아-아-아', beat: '4박', draw: 'w' },
@@ -369,6 +374,7 @@
     const head = hollow => `<ellipse cx="12" cy="30" rx="6.4" ry="4.6" transform="rotate(-20 12 30)" fill="${hollow ? '#fff' : '#2b2541'}" stroke="#2b2541" stroke-width="${hollow ? 2.2 : 1}"/>`;
     const stem = '<line x1="17.8" y1="29" x2="17.8" y2="5" stroke="#2b2541" stroke-width="2"/>';
     if (t === 'q') return head(false) + stem;
+    if (t === 'dq') return head(false) + stem + '<circle cx="25" cy="30" r="2" fill="#2b2541"/>';
     if (t === 'e') return head(false) + stem + '<path d="M17.8 5c1 6 9 8 7 16 0-5-4-8-7-9z" fill="#2b2541"/>';
     if (t === 'h') return head(true) + stem;
     if (t === 'dh') return head(true) + stem + '<circle cx="25" cy="30" r="2" fill="#2b2541"/>';
@@ -414,7 +420,7 @@
       if (n.d !== c.d) {
         if (M.beats(meas) - n.d + c.d > MB()) { sfx('oops'); toast('이 마디에 들어가기엔 너무 길어요.'); return; }
         snapshot();
-        meas[sel.k] = n.r ? { d: c.d, r: 1 } : { d: c.d, p: n.p };
+        meas[sel.k] = n.r ? { d: c.d, r: 1 } : Object.assign({ d: c.d, p: n.p }, n.c ? { c: n.c } : {});
         changed();
         toast(`음표 길이를 '${c.word}'(${c.beat})로 바꿨어요.`);
       }
@@ -481,19 +487,77 @@
       p = dir > 0 ? pool.find(m => m > n.p) : [...pool].reverse().find(m => m < n.p);
       if (p == null) { sfx('oops'); toast(dir > 0 ? '이보다 높은 음은 없어요.' : '이보다 낮은 음은 없어요.'); return; }
     }
+    // 화음이면 화음 전체를 같은 간격만큼 함께 옮긴다
+    const shift = n.p == null ? 0 : p - n.p;
+    const c = (n.c || []).map(v => v + shift).filter(v => v >= M.MIN_MIDI && v <= M.MAX_MIDI && v !== p);
     snapshot();
-    work.ms[sel.m][sel.k] = { d: n.d, p };
+    work.ms[sel.m][sel.k] = Object.assign({ d: n.d, p }, c.length ? { c } : {});
     changed();
+    playChord(work.ms[sel.m][sel.k]);
+  }
+  function playChord(n) {
     Engine.ensure();
-    Engine.play(work.inst, p, Math.min(n.d * beatSec(), 1.2));
-    flash(p);
+    [n.p, ...(n.c || [])].forEach(m => { Engine.play(work.inst, m, Math.min(n.d * beatSec(), 1.2)); flash(m); });
   }
   $('#btnUp').addEventListener('click', () => stepPitch(1));
   $('#btnLow').addEventListener('click', () => stepPitch(-1));
+
+  // ---------- 화음 ----------
+  // '화음'을 누르면 조성에 맞는 3도·5도 음을 자동으로 쌓고, 그다음 악기를 치면 그 음이 화음에 들어가거나 빠진다
+  let chordMode = false, chordFor = null;
+  function triadFor(p) {
+    const pool = ALL_KEYS.filter(m => M.inScale(m, work.key));
+    const i = pool.indexOf(p);
+    let up = i >= 0 ? [pool[i + 2], pool[i + 4]] : [p + 4, p + 7];
+    if (up.some(v => v == null || v > M.MAX_MIDI)) up = i >= 0 ? [pool[i - 2], pool[i - 4]] : [p - 3, p - 7];   // 위가 모자라면 아래로 쌓는다
+    return up.filter(v => v != null && v >= M.MIN_MIDI && v <= M.MAX_MIDI);
+  }
+  function setChordMode(on) {
+    chordMode = on;
+    chordFor = on ? { m: sel.m, k: sel.k } : null;
+    const b = $('#btnChord');
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', on);
+    b.querySelector('span').textContent = on ? '화음 끝' : '화음';
+  }
+  $('#btnChord').addEventListener('click', () => {
+    if (chordMode) { setChordMode(false); say('화음을 다 만들었어요!'); render(); return; }
+    const n = sel.k !== null ? work.ms[sel.m][sel.k] : null;
+    if (!n || n.r || n.p == null) { toast('먼저 음이 들어간 음표를 눌러 골라요.'); return; }
+    if (!n.c || !n.c.length) {
+      const c = triadFor(n.p);
+      if (!c.length) { toast('이 음에는 화음을 쌓을 자리가 없어요.'); return; }
+      snapshot();
+      work.ms[sel.m][sel.k] = { d: n.d, p: n.p, c };
+      changed();
+    }
+    setChordMode(true);
+    render();
+    playChord(work.ms[sel.m][sel.k]);
+    showGuide({ text: '화음이 생겼어요! 악기를 치면 그 음이 화음에 들어가거나 빠져요. 다 했으면 화음 끝!', target: $('#stage'), extra: [$('#btnChord')] });
+  });
+  function toggleChordTone(midi) {
+    const n = work.ms[sel.m][sel.k];
+    if (n.r || n.p == null) { setChordMode(false); return; }
+    if (midi === n.p) { toast('이 음은 화음의 바탕 음이에요. 바꾸려면 화음 끝을 누른 뒤 쳐요.'); return; }
+    const c = n.c ? [...n.c] : [];
+    const i = c.indexOf(midi);
+    if (i >= 0) c.splice(i, 1);
+    else if (c.length >= 3) { toast('화음은 4개 음까지 쌓을 수 있어요.'); return; }
+    else c.push(midi);
+    snapshot();
+    work.ms[sel.m][sel.k] = Object.assign({ d: n.d, p: n.p }, c.length ? { c } : {});
+    changed();
+    playChord(work.ms[sel.m][sel.k]);
+  }
+
   function renderSelEdit() {
     const n = sel.k !== null ? work.ms[sel.m][sel.k] : null;
-    $('#selLabel').textContent = !n ? `${sel.m + 1}마디 끝` : n.r ? '고른 쉼표' : n.p == null ? '고른 음표: ?' : `고른 음표: ${M.solfa(n.p, work.key)}`;
+    if (chordMode && (!chordFor || chordFor.m !== sel.m || chordFor.k !== sel.k || !n || n.r)) setChordMode(false);
+    const chord = n && n.c && n.c.length;
+    $('#selLabel').textContent = !n ? `${sel.m + 1}마디 끝` : n.r ? '고른 쉼표' : n.p == null ? '고른 음표: ?' : `고른 음표: ${M.solfa(n.p, work.key)}${chord ? ' 화음' : ''}`;
     $('#btnUp').disabled = $('#btnLow').disabled = !n || !!n.r;
+    $('#btnChord').disabled = !n || !!n.r || n.p == null;
     $('#btnDel').disabled = !n && !work.ms[sel.m].length && sel.m === 0;
   }
 
@@ -715,7 +779,7 @@
     const from = o.from || 0, to = o.to || M.NM;
     const bs = 60 / w.bpm;
     const tl = M.timeline(w, from, to);
-    const ev = tl.filter(x => x.p != null).map(x => ({ t: x.beat * bs, midi: x.p, dur: x.d * bs }));
+    const ev = toEvents(tl, bs);
     const handle = Engine.playSequence(ev, w.inst);
     const total = (to - from) * MB() * bs;
     const p = { handle, tl, bs, idx: -1, o, total, raf: 0 };
@@ -911,11 +975,11 @@
 
   // ---------- 리듬 추천: 고른 마디에 맞는 리듬 3가지 ----------
   const POOL = {
-    4: [[1, 1, 1, 1], [1, 1, 2], [2, 1, 1], [2, 2], [.5, .5, 1, .5, .5, 1], [1, .5, .5, 2], [.5, .5, .5, .5, 2], [3, 1], [1, 1, 1, -1], [4], [1, -1, 1, 1]],
-    3: [[1, 1, 1], [2, 1], [1, 2], [3], [.5, .5, 1, 1], [1, .5, .5, 1], [1, 1, -1], [.5, .5, 2]],
-    2: [[1, 1], [2], [.5, .5, 1], [1, .5, .5], [.5, .5, .5, .5], [1, -1]],
+    4: [[1, 1, 1, 1], [1, 1, 2], [2, 1, 1], [2, 2], [.5, .5, 1, .5, .5, 1], [1.5, .5, 1, 1], [1, .5, .5, 2], [.5, .5, .5, .5, 2], [3, 1], [1.5, .5, 2], [1, 1, 1, -1], [4], [1, -1, 1, 1]],
+    3: [[1, 1, 1], [2, 1], [1, 2], [3], [1.5, .5, 1], [.5, .5, 1, 1], [1, .5, .5, 1], [1, 1, -1], [.5, .5, 2]],
+    2: [[1, 1], [2], [.5, .5, 1], [1.5, .5], [1, .5, .5], [.5, .5, .5, .5], [1, -1]],
   };
-  const WORD = { .5: '티', 1: '타', 2: '타-아', 3: '타-아-아', 4: '타-아-아-아' };
+  const WORD = { .5: '티', 1: '타', 1.5: '타-이', 2: '타-아', 3: '타-아-아', 4: '타-아-아-아' };
   const patWord = p => p.map(d => d < 0 ? '쉼' : WORD[d]).join(' ');
   const patOf = meas => meas.map(n => n.r ? -n.d : n.d);
   let recSeed = 0;
@@ -935,7 +999,7 @@
   function renderRec() {
     const m = sel.m;
     $('#rec').innerHTML = `<div class="rec__head"><b>${m + 1}번째 마디 리듬 추천</b><button class="rec__dice" id="recDice" aria-label="다른 리듬 추천">${icon('dice')}<span>다른 추천</span></button></div>
-      <div class="rec__list">${recommend(m).map((r, i) => `<button class="rec-chip" data-rec="${i}"><span class="rec-chip__label">${r.label}</span><span class="rec-chip__notes">${r.p.map(d => `<svg viewBox="0 0 30 40" aria-hidden="true">${noteIcon(d < 0 ? 'r' : { .5: 'e', 1: 'q', 2: 'h', 3: 'dh', 4: 'w' }[d])}</svg>`).join('')}</span><span class="rec-chip__word">${patWord(r.p)}</span></button>`).join('')}</div>`;
+      <div class="rec__list">${recommend(m).map((r, i) => `<button class="rec-chip" data-rec="${i}"><span class="rec-chip__label">${r.label}</span><span class="rec-chip__notes">${r.p.map(d => `<svg viewBox="0 0 30 40" aria-hidden="true">${noteIcon(d < 0 ? 'r' : { .5: 'e', 1: 'q', 1.5: 'dq', 2: 'h', 3: 'dh', 4: 'w' }[d])}</svg>`).join('')}</span><span class="rec-chip__word">${patWord(r.p)}</span></button>`).join('')}</div>`;
   }
   $('#rec').addEventListener('click', e => {
     if (e.target.closest('#recDice')) { recSeed++; sfx('card'); renderRec(); return; }
@@ -977,7 +1041,7 @@
       let blob, name;
       if (kind === 'mp3') {
         const bs = beatSec();
-        const ev = M.timeline(work).filter(x => x.p != null).map(x => ({ t: .3 + x.beat * bs, midi: x.p, dur: x.d * bs }));
+        const ev = toEvents(M.timeline(work), bs, .3);
         const buf = await Engine.renderOffline(ev, work.inst, .3 + M.NM * MB() * bs + 2.5);
         blob = await Exporter.encodeMp3(buf, work);
         name = Exporter.baseName(work, suffix) + '.mp3';
@@ -1068,7 +1132,7 @@
     text.textContent = '연주를 녹음하는 중…';
     try {
       const bs = beatSec();
-      const ev = M.timeline(work).filter(x => x.p != null).map(x => ({ t: .3 + x.beat * bs, midi: x.p, dur: x.d * bs }));
+      const ev = toEvents(M.timeline(work), bs, .3);
       const buf = await Engine.renderOffline(ev, work.inst, .3 + M.NM * MB() * bs + 2.5);
       text.textContent = 'MP3로 바꾸는 중…';
       const blob = await Exporter.encodeMp3(buf, work, p => { fill.style.width = (10 + p * 90) + '%'; });
@@ -1233,7 +1297,7 @@
     { tab: '박자와 마디', html: () => `<h3>박자는 한 마디에 몇 박을 셀지 정해요</h3>
       <p>2/4박자는 한 마디에 2박, 3/4박자는 3박, 4/4박자는 4박이에요. <b>박자·빠르기</b> 단추에서 들어 보고 골라요.</p>
       <div class="demo-row">${M.METERS.map(m => `<button class="demo" data-meter-demo="${m}">${icon('play')}<span>${m}/4박자<small>${METER_INFO[m].feel}</small></span></button>`).join('')}</div>
-      <p>리듬 카드의 박을 더해서 한 마디를 채워요. 예: <span class="eq">타(1) + 타(1) + 타-아(2) = 4박</span></p>
+      <p>리듬 카드의 박을 더해서 한 마디를 채워요. 예: <span class="eq">타(1) + 타(1) + 타-아(2) = 4박</span> <span class="eq">타-이(1½) + 티(½) + 타-아(2) = 4박</span></p>
       <p>마디가 덜 차면 악보 위에 빨간 숫자(예: 3/4박)가 보여요. 어떤 리듬을 넣을지 모르겠으면 <b>리듬 추천</b>을 눌러 봐요.</p>
       <div class="demo-row">${CARDS.map((c, i) => `<button class="demo" data-card="${i}">${icon('play')}<span>${c.word}<small>${c.beat}</small></span></button>`).join('')}</div>` },
     { tab: '장조와 단조', html: () => `<h3>장조는 밝고, 단조는 슬프거나 신비로워요</h3>
@@ -1253,7 +1317,8 @@
         <li>노란 칸의 <b>회색 음표</b>를 누르고 악기를 쳐서 음을 넣어요.</li>
         <li>빈 마디를 누르고 <b>리듬 추천</b>이나 <b>리듬 카드</b>를 고른 다음 악기를 치면 음표가 들어가요.</li>
         <li>무엇을 할지 모르겠으면 <b>도담이</b>를 눌러요. 눌러야 할 곳을 반짝이며 알려줘요.</li>
-        <li>음표를 누르고 악기를 다시 치면 음이 바뀌어요. 틀리면 <b>되돌리기</b>를 눌러요.</li>
+        <li>음표를 누르고 악기를 다시 치면 음이 바뀌어요. <b>높게·낮게</b>로 한 칸씩 옮기고, 틀리면 <b>되돌리기</b>를 눌러요.</li>
+        <li>음표를 고르고 <b>화음</b>을 누르면 어울리는 음이 함께 쌓여요. 악기를 쳐서 화음 음을 넣거나 빼요.</li>
         <li><b>처음부터 듣기</b>로 감상하고, 마음에 안 드는 곳을 고쳐요.</li>
         <li>제목·학번·이름과 <b>작곡 의도</b>를 쓰고, 노란 <b>완성하고 내기</b> 단추로 MP3와 악보 그림을 저장해요.</li>
       </ol>` },
