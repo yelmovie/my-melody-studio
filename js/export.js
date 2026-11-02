@@ -34,7 +34,7 @@ window.Exporter = (() => {
     const frames = [
       textFrame('TIT2', str(w.title).trim() || '나만의 가락'),
       textFrame('TPE1', `${str(w.num)} ${str(w.name)}`.trim()),
-      textFrame('TALB', '나만의 가락 만들기'),
+      textFrame('TALB', '또롱이 작곡교실'),
       frame('COMM', concat([Uint8Array.of(1), latin('kor'), utf16(''), Z2, utf16(str(w.intent))])),
       frame('TXXX', concat([Uint8Array.of(1), utf16(TAG_DESC), Z2, utf16(JSON.stringify(w))])),
     ];
@@ -325,23 +325,27 @@ window.Exporter = (() => {
       ['빠르기', '♩ = ' + str(w.bpm || 90), '#ebfbee', '#2b8a3e'],
       ['', `${M.NM || 16}마디 · ${M.meterOf ? M.meterOf(w) : 4}/4박자`, '#fff3bf', '#a15c00'],
     ];
-    const tagText = '🎼 가락 만들기 제출용';
+    const tagText = '🎼 또롱이 작곡교실 제출용';
     const scoreHead = '🎶 악보', scoreNote = `한 줄에 4마디 · 모두 ${M.NM || 16}마디`;
     const intentHead = '🎵 작곡 의도와 느낌', intentEmpty = '(작곡 의도를 아직 쓰지 않았어요)';
-    const footer = '나만의 가락 만들기 ♪';
+    const footer = '또롱이 작곡교실 ♪';
     const allText = [tagText, title, '지은이: ' + author, chips.flat().join(''), scoreHead, scoreNote, intentHead, intentEmpty, intent, footer, today(), '악보를 그리지 못했어요'].join('');
 
     const hasJua = await prepFonts(allText);
     const F = (px, strong) => `${strong && !hasJua ? 'bold ' : ''}${px}px ${KFONT}`;
 
     // 악보 6줄을 그림으로
-    const W = 1600, MG = 56, CW = W - MG * 2, P = 44, SW = CW - P * 2, SH = Math.round(SW * 160 / 1000), GAP = 8;
+    // 가사가 있으면 가사와 계이름을 함께 그린다. 줄 높이는 악보 그림의 viewBox 를 따른다
+    const hasLyrics = Array.isArray(w.ly) && w.ly.some(s => String(s || '').trim());
     let svgs = [];
     try {
       if (window.Score && typeof window.Score.renderAll === 'function') {
-        svgs = window.Score.renderAll(w, { prefix: 'x', editable: false, labels: true }) || [];
+        svgs = window.Score.renderAll(w, { prefix: 'x', editable: false, labels: true, text: hasLyrics ? 'both' : 'solfa' }) || [];
       }
     } catch (e) { svgs = []; }
+    const vb = typeof svgs[0] === 'string' && /viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svgs[0]);
+    const lineRatio = vb ? +vb[2] / +vb[1] : 0.16;
+    const W = 1600, MG = 56, CW = W - MG * 2, P = 44, SW = CW - P * 2, SH = Math.round(SW * lineRatio), GAP = 8;
     const css = svgs.length ? await musicFontCss() : '';
     const imgs = await Promise.all(Array.from({ length: lines }, (_, i) =>
       typeof svgs[i] === 'string' ? loadSvg(prepSvg(svgs[i], SW, SH, css)).catch(() => null) : Promise.resolve(null)));

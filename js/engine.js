@@ -1,4 +1,21 @@
 // 소리 엔진: FluidR3_GM 샘플(MIT) + Web Audio. file:// 에서도 돌도록 모듈 대신 전역 window.Engine 하나만 내보낸다
+/*
+ * ---- 소리 출처·라이선스 (악기 + 효과음 + 메트로놈) ----
+ * 모든 샘플은 실행 중에 아래 주소에서 받아 쓴다(앱 안에 오디오 파일을 따로 넣지 않음).
+ *   https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/<gm-name>-mp3/<Note>.mp3
+ *   - 원본 사운드폰트: Fluid (R3) General MIDI SoundFont, Copyright (c) 2000-2002, 2008 Frank Wen, MIT License
+ *     (Debian fluid-soundfont 패키지 copyright 파일 기준)
+ *   - MP3 변환본: gleitz/midi-js-soundfonts (Benjamin Gleitzman). 이 저장소 README 는 FluidR3_GM 을
+ *     "Creative Commons Attribution 3.0" 으로 표기하므로, 어느 쪽이든 충족되도록 여기에 출처를 밝혀 둔다.
+ *   - 효과음에 쓰는 음색: woodblock, kalimba, marimba, celesta, glockenspiel, music_box, applause
+ *     (메트로놈은 woodblock). 샘플을 못 받으면(오프라인 등) Web Audio 합성음으로 대신한다.
+ * 검토했지만 쓰지 않은 효과음 출처:
+ *   - Kenney.nl (Interface/UI Audio 등): CC0, 앱 안 재배포 가능. 다만 OGG 전용이라 iPad Safari 호환을 위해
+ *     MP3 변환이 필요한데 이 환경에 ffmpeg 가 없어 보류.
+ *   - OpenGameArt / Freesound: 파일마다 라이선스가 다름(CC0 인 것만 자유 재배포). 개별 확인·변환 부담으로 보류.
+ *   - Mixkit: 자체 "Mixkit License"(무료·상업 사용 가능, 출처 표기 불필요)이나 CC0 가 아니고 재배포 조건이 불명확해 제외.
+ *   - Pixabay: Content License 가 소리를 단독(standalone)으로 재배포하는 것을 금지하므로 제외.
+ */
 window.Engine = (() => {
   const M = window.Music;
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -9,6 +26,7 @@ window.Engine = (() => {
   const WET = 0.18;           // 잔향 양
   const RENDER_LEVEL = 0.8;   // 파일 저장용 고정 음량
   const MAX_FETCH = 6;
+  const SFX_LEVEL = 0.85;     // 효과음 버스 크기: 효과음 최대가 악기 한 음(약 0.26)과 같거나 작게
 
   const noteName = m => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -16,8 +34,11 @@ window.Engine = (() => {
   const safeCall = (f, ...a) => { try { f(...a); } catch (e) { /* UI 콜백 오류가 로딩을 멈추지 않게 */ } };
 
   let ctx = null, live = null, volume = 0.8, decodeCtx = null;
-  let applause = null, applauseLoading = null;
-  const insts = {};                       // id -> { bufs: Map(소리 MIDI -> AudioBuffer), promise, done, ... }
+  let applause = null, applauseLoading = null, applauseGain = 0.5;
+  let sfxBus = null, sfxOn = true, sfxLoading = null, sfxTriedAt = 0;
+  const sfxBufs = {};                     // gm 이름 -> Map(MIDI -> { buf, norm })
+  const sfxLast = {};                     // 효과음 이름 -> 마지막 재생 시각 (연타 겹침 방지)
+  const insts = {};                      // id -> { bufs: Map(소리 MIDI -> AudioBuffer), promise, done, ... }
   const noiseCache = new WeakMap();       // context -> 1초 백색잡음
   const loopCache = new WeakMap();        // AudioBuffer -> [loopStart, loopEnd] | null
 
@@ -62,6 +83,11 @@ window.Engine = (() => {
         try { ctx = new AC(); } catch (e2) { return null; }
       }
       live = buildChain(ctx, volume);
+      // 효과음 전용 버스: 효과음만 끄고 켤 수 있게 (악기·메트로놈은 영향 없음)
+      sfxBus = ctx.createGain();
+      sfxBus.gain.value = sfxOn ? SFX_LEVEL : 0;
+      sfxBus.connect(live.master);
+      setTimeout(loadSfx, 1200);
       setTimeout(loadApplause, 1500);
     }
     if (ctx.state !== 'running' && ctx.state !== 'closed') {
@@ -365,8 +391,10 @@ window.Engine = (() => {
   }
 
   // ---------- 메트로놈 ----------
+  // 우드블록 샘플이 있으면 그것으로(첫 박: C6·더 크게, 나머지: G5), 없으면 합성 딸깍
   function click(c, t, acc) {
     const out = live.master;
+    if (playSample(c, out, 'woodblock', acc ? 84 : 79, t, acc ? 0.42 : 0.26, 0.02, 0.12)) return;
     const n = c.createBufferSource(), bp = c.createBiquadFilter(), ng = c.createGain();
     n.buffer = noiseBuf(c);
     bp.type = 'bandpass'; bp.frequency.value = acc ? 2600 : 1900; bp.Q.value = 4;
@@ -385,19 +413,23 @@ window.Engine = (() => {
   }
 
   const metronome = (() => {
-    let timer = 0, bpm = 90, next = 0, beat = 0;
+    let timer = 0, bpm = 90, next = 0, beat = 0, perBar = 4;
     function tick() {
       if (!ctx) return;
       const now = ctx.currentTime, spb = 60 / bpm;
       if (next < now - 0.2) while (next < now) { next += spb; beat++; }   // 탭이 잠들었다 깨면 밀린 박은 건너뜀
-      while (next < now + 0.1) { click(ctx, next, beat % 4 === 0); next += 60 / bpm; beat++; }
+      while (next < now + 0.1) { click(ctx, next, beat % perBar === 0); next += 60 / bpm; beat++; }
     }
     function stop() { if (timer) clearInterval(timer); timer = 0; }
     // at(선택): 첫 박을 칠 context 시각 (예: playSequence 핸들의 t0)
-    function start(b, at) {
+    // beatsPerBar(선택): 마디당 박 수(2/3/4 등). 그 박마다 강박. 기본 4
+    function start(b, at, beatsPerBar) {
       const c = ensure();
       if (!c) return;
       stop();
+      loadSfx();
+      const n = Math.round(+beatsPerBar);
+      perBar = n >= 1 && n <= 12 ? n : 4;
       bpm = M.clampBpm(b || bpm);
       next = Math.max(c.currentTime + 0.05, +at || 0);
       beat = 0;
@@ -429,10 +461,69 @@ window.Engine = (() => {
     });
   }
 
+  // ---- 효과음 샘플 (FluidR3_GM 한 음씩, 약 14KB) ----
+  // 우드블록을 먼저 받아 메트로놈이 빨리 샘플로 바뀌게 한다
+  const SFX_SAMPLES = [
+    ['woodblock', 72], ['woodblock', 84],
+    ['kalimba', 67], ['kalimba', 88],
+    ['marimba', 79],
+    ['celesta', 72], ['celesta', 84],
+    ['glockenspiel', 91], ['glockenspiel', 98],
+    ['music_box', 88],
+  ];
+
+  // 빠진 샘플만 백그라운드로 받는다(동시 2개). 전부 실패했으면 20초 뒤에 다시 시도할 수 있다
+  function loadSfx() {
+    if (sfxLoading || !ctx || Date.now() - sfxTriedAt < 20000) return sfxLoading;
+    const missing = SFX_SAMPLES.filter(([gm, m]) => !(sfxBufs[gm] && sfxBufs[gm].has(m)));
+    if (!missing.length) return null;
+    sfxTriedAt = Date.now();
+    const tasks = missing.map(([gm, m]) => () =>
+      fetchBuffer(`${BASE}${gm}-mp3/${noteName(m)}.mp3`).then(b => {
+        const d = b.getChannelData(0);
+        let p = 0;
+        for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > p) p = v; }
+        // 샘플 피크를 1 로 맞추는 배율 (녹음 크기 0.02~0.08 정도라 최대 40배까지)
+        (sfxBufs[gm] = sfxBufs[gm] || new Map()).set(m, { buf: b, norm: clamp(1 / (p || 1), 1, 40) });
+      }, () => { /* 못 받으면 합성음으로 대신 */ }));
+    sfxLoading = pool(tasks, 2).then(() => { sfxLoading = null; });
+    return sfxLoading;
+  }
+
+  function sfxHas(...gms) { return gms.every(gm => sfxBufs[gm] && sfxBufs[gm].size > 0); }
+
+  // gm 음색으로 midi 음을 낸다. peak: 목표 최대 크기, hold 동안 유지 후 fade 동안 사라짐,
+  // glide(반음, 선택): 소리가 나는 동안 음높이를 미끄러뜨림. 샘플이 없으면 false
+  function playSample(c, dest, gm, midi, t, peak, hold, fade, glide) {
+    const map = sfxBufs[gm];
+    if (!map || !map.size) return false;
+    let best = 0, bd = Infinity;
+    map.forEach((v, m) => { const d = Math.abs(m - midi); if (d < bd) { bd = d; best = m; } });
+    if (bd > 12) return false;
+    const s = map.get(best), rate = Math.pow(2, (midi - best) / 12);
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = s.buf;
+    src.playbackRate.setValueAtTime(rate, t);
+    if (glide) src.playbackRate.exponentialRampToValueAtTime(rate * Math.pow(2, glide / 12), t + hold + fade * 0.6);
+    g.gain.setValueAtTime(peak * s.norm, t);
+    g.gain.setTargetAtTime(0, t + hold, fade / 5);
+    src.connect(g); g.connect(dest);
+    src.start(t);
+    src.stop(t + hold + fade + 0.02);
+    track([src], [g]);
+    return true;
+  }
+
   function loadApplause() {
     if (applause || applauseLoading) return applauseLoading;
     applauseLoading = fetchBuffer(BASE + 'applause-mp3/C4.mp3')
-      .then(b => { applause = b; }, () => { applauseLoading = null; });
+      .then(b => {
+        const d = b.getChannelData(0);
+        let p = 0;
+        for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > p) p = v; }
+        applause = b;
+        applauseGain = clamp(0.2 / (p || 1), 0.3, 3);   // 최대 약 0.2 로 (예전 고정 0.5 는 최대 약 0.08)
+      }, () => { applauseLoading = null; });
     return applauseLoading;
   }
 
@@ -443,8 +534,8 @@ window.Engine = (() => {
       src.buffer = applause;
       if (D < L + 0.1) { src.loop = true; src.loopStart = D * 0.3; src.loopEnd = D * 0.9; }
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.06);
-      g.gain.setValueAtTime(0.5, t + L - 0.6);
+      g.gain.linearRampToValueAtTime(applauseGain, t + 0.06);
+      g.gain.setValueAtTime(applauseGain, t + L - 0.6);
       g.gain.linearRampToValueAtTime(0, t + L);
       src.connect(g); g.connect(out);
       src.start(t); src.stop(t + L + 0.02);
@@ -466,26 +557,100 @@ window.Engine = (() => {
     }
   }
 
+  // 효과음 크기는 악기(한 음 최대 약 0.35)보다 작게: 대부분 최대 0.2~0.3, 'tap' 은 0.13
+  // 샘플이 있으면 샘플, 없으면(로딩 전·오프라인) 합성음
   function sfx(name) {
-    const c = ensure();
-    if (!c) return;
-    const out = live.master, t = c.currentTime + 0.01;
+    const c = ensure();   // 효과음을 꺼 두어도 첫 터치로 오디오 잠금은 풀리게 먼저 부른다
+    if (!c || !sfxOn) return;
+    const now = c.currentTime;
+    if (sfxLast[name] !== undefined && now - sfxLast[name] < 0.035) return;   // 같은 효과음 연타 겹침 방지
+    sfxLast[name] = now;
+    if (sfxTriedAt && !sfxLoading) loadSfx();   // 첫 시도는 ensure() 뒤 타이머가 맡고, 여기선 실패분 재시도만
+    const out = sfxBus, t = now + 0.01;
+    const S = (gm, m, dt, peak, hold, fade, glide) => playSample(c, out, gm, m, t + dt, peak, hold, fade, glide);
     switch (name) {
-      case 'pop':
-        blip(c, out, { f: 700, path: [[260, 0.09]], t, peak: 0.28, decay: 0.12 });
+      case 'tap':   // 버튼 누름: 아주 작은 나무 '톡'
+        if (!S('woodblock', 86, 0, 0.13, 0.015, 0.07)) {
+          blip(c, out, { type: 'triangle', f: 1800, path: [[1500, 0.02]], t, peak: 0.07, attack: 0.002, decay: 0.04 });
+        }
         break;
-      case 'card':
-        blip(c, out, { type: 'triangle', f: 2400, path: [[2000, 0.03]], t, peak: 0.12, attack: 0.002, decay: 0.05 });
+      case 'pop':   // 악보의 음·마디 고르기: 칼림바 '퐁'
+        if (!S('kalimba', 86, 0, 0.26, 0.06, 0.3)) {
+          blip(c, out, { f: 700, path: [[260, 0.09]], t, peak: 0.26, decay: 0.12 });
+        }
         break;
-      case 'success':
-        [84, 88, 91, 96].forEach((m, i) => bell(c, out, hz(m), t + i * 0.085, 0.14, i === 3 ? 1.8 : 1));
+      case 'card':  // 리듬 카드 집기: 우드블록 두 번 '또각'
+        if (sfxHas('woodblock')) {
+          S('woodblock', 84, 0, 0.15, 0.015, 0.08);
+          S('woodblock', 91, 0.045, 0.2, 0.015, 0.1);
+        } else {
+          blip(c, out, { type: 'triangle', f: 2400, path: [[2000, 0.03]], t, peak: 0.12, attack: 0.002, decay: 0.05 });
+        }
         break;
-      case 'oops':
-        [[294, 0], [220, 0.2]].forEach(([f, dt]) => blip(c, out, {
-          type: 'triangle', f: f * 0.75, path: [[f * 1.03, 0.05], [f * 0.93, 0.35]],
-          t: t + dt, peak: 0.3, attack: 0.01, decay: 0.4,
-        }));
+      case 'place': // 음이 악보에 들어감: 마림바 '똑'
+        if (!S('marimba', 76, 0, 0.28, 0.08, 0.35)) {
+          blip(c, out, { f: 660, path: [[640, 0.05]], t, peak: 0.2, attack: 0.003, decay: 0.2 });
+          blip(c, out, { f: 2640, t, peak: 0.04, attack: 0.002, decay: 0.05 });
+        }
         break;
+      case 'measure': // 마디가 꽉 참: 첼레스타 두 음 (C6→G6)
+        if (sfxHas('celesta')) {
+          S('celesta', 84, 0, 0.22, 0.12, 0.5);
+          S('celesta', 91, 0.11, 0.26, 0.15, 0.7);
+        } else {
+          bell(c, out, hz(84), t, 0.11, 0.9);
+          bell(c, out, hz(91), t + 0.11, 0.12, 1.3);
+        }
+        break;
+      case 'star':  // 필수 리듬을 넣음: 글로켄슈필 반짝 (G6 B6 D7 G7)
+        [91, 95, 98, 103].forEach((m, i) => {
+          if (!S('glockenspiel', m, i * 0.06, 0.15 - i * 0.015, 0.04, i === 3 ? 0.7 : 0.4)) {
+            bell(c, out, hz(m), t + i * 0.06, 0.07 - i * 0.008, i === 3 ? 0.8 : 0.5);
+          }
+        });
+        break;
+      case 'hint':  // 마스코트 힌트: 작은 '뽀록' + 오르골 두 음 (B5→E6)
+        blip(c, out, { f: 420, path: [[900, 0.07]], t, peak: 0.07, attack: 0.008, decay: 0.08 });
+        if (sfxHas('music_box')) {
+          S('music_box', 83, 0.07, 0.22, 0.1, 0.5);
+          S('music_box', 88, 0.19, 0.26, 0.15, 0.7);
+        } else {
+          bell(c, out, hz(83), t + 0.07, 0.1, 0.8);
+          bell(c, out, hz(88), t + 0.19, 0.11, 1.1);
+        }
+        break;
+      case 'oops':  // 앗: 낮게 미끄러지는 칼림바 '뽀잉' 두 번 (놀라지 않게 부드럽게)
+        if (sfxHas('kalimba')) {
+          S('kalimba', 64, 0, 0.24, 0.1, 0.3, -2);
+          S('kalimba', 60, 0.2, 0.22, 0.12, 0.4, -3);
+        } else {
+          [[294, 0], [220, 0.2]].forEach(([f, dt]) => blip(c, out, {
+            type: 'triangle', f: f * 0.75, path: [[f * 1.03, 0.05], [f * 0.93, 0.35]],
+            t: t + dt, peak: 0.26, attack: 0.01, decay: 0.4,
+          }));
+        }
+        break;
+      case 'success': // 파일 저장: 밝은 세 음 (C6 E6 G6)
+        if (sfxHas('celesta')) {
+          [84, 88, 91].forEach((m, i) => S('celesta', m, i * 0.09, 0.2 + i * 0.03, 0.1, i === 2 ? 0.9 : 0.45));
+        } else {
+          [84, 88, 91, 96].forEach((m, i) => bell(c, out, hz(m), t + i * 0.085, 0.14, i === 3 ? 1.8 : 1));
+        }
+        break;
+      case 'fanfare': { // 곡 완성: 오르는 펼침화음 + 마지막 화음과 반짝임 (약 1.5초)
+        const arp = [72, 76, 79, 84, 88], at = 0.48;
+        if (sfxHas('celesta')) {
+          arp.forEach((m, i) => S('celesta', m, i * 0.09, 0.2 + i * 0.015, 0.06, 0.35));
+          [84, 88, 91].forEach(m => S('celesta', m, at, 0.09, 0.3, 0.7));   // 세 음이 겹쳐도 합 0.3 이하
+          if (!S('glockenspiel', 96, at + 0.03, 0.1, 0.2, 0.8)) bell(c, out, hz(96), t + at + 0.03, 0.05, 1);
+          if (!S('glockenspiel', 103, at + 0.12, 0.08, 0.15, 0.7)) bell(c, out, hz(103), t + at + 0.12, 0.04, 0.8);
+        } else {
+          arp.forEach((m, i) => bell(c, out, hz(m), t + i * 0.09, 0.1, 0.5));
+          [84, 88, 91].forEach(m => bell(c, out, hz(m), t + at, 0.055, 1.6));
+          bell(c, out, hz(96), t + at + 0.12, 0.05, 1.2);
+        }
+        break;
+      }
       case 'applause':
         playApplause(c, out, t);
         break;
@@ -494,10 +659,22 @@ window.Engine = (() => {
     }
   }
 
+  // 효과음만 켜고 끈다 (악기·메트로놈은 그대로). 기본은 켜짐
+  function setSfxEnabled(on) {
+    sfxOn = !!on;
+    if (sfxBus && ctx) {
+      const g = sfxBus.gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setTargetAtTime(sfxOn ? SFX_LEVEL : 0, ctx.currentTime, 0.015);
+    }
+  }
+
   return {
     get ctx() { return ctx; },
     get volume() { return volume; },
+    get sfxEnabled() { return sfxOn; },
+    set sfxEnabled(v) { setSfxEnabled(v); },
     ensure, setVolume, loadInstrument, preload: loadInstrument, isReady,
-    play, playSequence, renderOffline, metronome, sfx,
+    play, playSequence, renderOffline, metronome, sfx, setSfxEnabled,
   };
 })();

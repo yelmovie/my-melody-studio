@@ -128,7 +128,7 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .inst-tab__pct { position: absolute; top: 2px; right: 6px; font-family: var(--font-body); font-size: var(--fs-micro); color: var(--color-text-sub); }
 .top-right { display: flex; align-items: center; gap: var(--space-sm); }
 .vol { display: flex; align-items: center; gap: var(--space-xs); color: var(--color-text-sub); }
-.vol input { width: 90px; accent-color: var(--color-primary); }
+.vol input { width: 90px; height: 40px; accent-color: var(--color-primary); }
 
 /* ===== 곡 정보 ===== */
 .info-row { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; padding: var(--space-sm) var(--space-md); }
@@ -202,15 +202,17 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .rec { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-xs); }
 .rec__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); font-family: var(--font-head); font-size: var(--fs-small); color: var(--color-primary); }
 .rec__head b { font-weight: normal; }
-.rec__dice { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-pill); background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: var(--fs-micro); }
+.rec__dice { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-pill); background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: var(--fs-micro); }
 .rec__dice::after { content: ''; position: absolute; inset: -6px 0; }
 .rec__dice { position: relative; }
-.rec__list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xs); }
+.rec__list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 48px; gap: var(--space-xs); }
+.rec__list .rec__dice { flex-direction: column; justify-content: center; min-height: 0; min-width: 44px; padding: 0 2px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.15; text-align: center; }
+.rec__head { min-height: 20px; }
 .rec-chip {
   display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 68px; padding: var(--space-xs);
   border: 2px solid var(--color-border-soft); border-radius: var(--radius-md); background: #fbf9ff; box-shadow: var(--shadow-button);
 }
-.rec-chip__label { font-family: var(--font-body); font-size: 11px; color: var(--color-text-sub); }
+.rec-chip__label { font-family: var(--font-body); font-size: 12px; color: var(--color-text-sub); }
 .rec-chip__notes { display: flex; align-items: flex-end; height: 24px; }
 .rec-chip__notes svg { width: 15px; height: 20px; }
 .rec-chip__word { font-size: var(--fs-micro); line-height: 1.2; text-align: center; word-break: keep-all; }
@@ -261,11 +263,48 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .bubble.is-new { animation: pop .3s; }
 @keyframes pop { 50% { transform: scale(1.05); } }
 .mascot { width: clamp(84px, 7vw, 130px); aspect-ratio: 120 / 140; border: 0; background: none; padding: 0; animation: bob 3.2s ease-in-out infinite; cursor: pointer; position: relative; }
-.mascot::after { content: '눌러 봐요'; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); padding: 1px 8px; border-radius: var(--radius-pill); background: var(--color-primary); color: #fff; font-family: var(--font-head); font-size: 12px; white-space: nowrap; }
+.mascot::after { content: '힌트'; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); padding: 1px 8px; border-radius: var(--radius-pill); background: var(--color-primary); color: #fff; font-family: var(--font-head); font-size: 12px; white-space: nowrap; }
 .mascot.is-calling { animation: wave .6s ease-in-out infinite; }
 @keyframes wave { 25% { transform: rotate(-10deg) translateY(-4px); } 75% { transform: rotate(10deg) translateY(-4px); } }
 
-/* 도담이 안내: 가리키는 테두리와 화살표 */
+/* 가사 줄이 있는 악보는 한 줄이 조금 더 높다 (1000:184) */
+.score-box.is-tall { height: calc((100cqw - 20px) * .184 + 6px); }
+.show-score.is-tall { width: min(100cqw, calc(100cqh * 1000 / 746)); }
+.nt.playing .ly { fill: #e8590c; font-size: 21px; }
+
+/* 16분음표 묶음·쉼표 고르기 작은 창 */
+.rcard--pop { background: linear-gradient(#fff, #fff8e1); border-style: dashed; }
+.rcard--pop::after { content: '▾'; position: absolute; right: 4px; top: 2px; font-size: 11px; color: var(--color-text-sub); }
+.card-pop {
+  position: fixed; z-index: 52; padding: var(--space-sm); border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: 0 12px 32px rgba(40, 20, 90, .25); animation: pop .2s;
+}
+.card-pop__title { margin: 0 0 var(--space-xs); font-family: var(--font-head); font-size: var(--fs-small); color: var(--color-primary); }
+.card-pop__list { display: grid; grid-template-columns: repeat(4, auto); gap: var(--space-xs); }
+.card-pop__item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 84px; min-height: 92px; padding: var(--space-xs);
+  border: 2px solid var(--color-border-soft); border-radius: var(--radius-md); background: #fbf9ff; box-shadow: var(--shadow-button);
+}
+.card-pop__item b { font-weight: normal; font-size: var(--fs-btn); }
+.card-pop__item small { font-family: var(--font-body); font-size: var(--fs-micro); color: var(--color-text-sub); }
+.card-pop__item:disabled { opacity: .35; }
+
+/* 가사 쓰기 */
+.mcard h2 .opt { margin-left: var(--space-sm); padding: 2px 10px; border-radius: var(--radius-pill); background: var(--color-tip-soft); font-family: var(--font-body); font-size: var(--fs-micro); color: #8a6d00; vertical-align: middle; }
+.lyric-lines { display: flex; flex-direction: column; gap: var(--space-sm); }
+.lyric-line { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 4px var(--space-sm); }
+.lyric-line label { font-family: var(--font-head); font-size: var(--fs-btn); color: var(--color-primary); }
+.lyric-line label small { display: block; font-family: var(--font-body); font-size: var(--fs-micro); color: var(--color-text-sub); }
+.lyric-line input { min-height: var(--button-height-sm); padding: 0 var(--space-md); border: 3px solid var(--color-border-soft); border-radius: var(--radius-md); font-size: var(--fs-btn); outline: none; }
+.lyric-line input:focus { border-color: var(--color-primary); }
+.lyric-status { grid-column: 2; font-size: var(--fs-small); color: var(--color-text-sub); }
+.lyric-status.is-ok { color: var(--color-correct); }
+.lyric-status.is-tip { color: #b07800; }
+.lyric-status.is-no { color: var(--color-wrong); }
+.lyric-view { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); font-family: var(--font-head); font-size: var(--fs-small); color: var(--color-text-sub); }
+@media (max-width: 600px) { .lyric-line { grid-template-columns: 1fr; } .lyric-status { grid-column: 1; } .card-pop__list { grid-template-columns: repeat(2, auto); } }
+
+/* 또롱이 안내: 가리키는 테두리와 화살표 */
 .guide-ring {
   position: fixed; z-index: 55; pointer-events: none; border-radius: var(--radius-lg);
   box-shadow: 0 0 0 4px var(--color-accent), 0 0 0 10px rgba(255, 212, 59, .4);
@@ -335,7 +374,7 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .inst-now .ic { color: var(--color-primary); }
 .inst-load { font-size: var(--fs-small); color: var(--color-text-sub); }
 .seg { display: flex; padding: 3px; border-radius: var(--radius-md); background: var(--color-primary-soft); }
-.seg button { min-height: 42px; padding: 0 var(--space-md); border: 0; border-radius: 10px; background: transparent; font-size: var(--fs-small); }
+.seg button { min-height: 42px; min-width: 44px; padding: 0 var(--space-md); border: 0; border-radius: 10px; background: transparent; font-size: var(--fs-small); }
 .seg button.is-on { background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow-soft); }
 .stage-wrap { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
 .stage { position: relative; width: min(100cqw, 230cqh); aspect-ratio: 2.3 / 1; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -357,7 +396,7 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .bar--dark { color: #fff; }
 .bar .lb { font-size: clamp(12px, 4.4cqh, 32px); text-shadow: 0 1px 0 rgba(255,255,255,.5); }
 .bar--dark .lb, .bar--black .lb { text-shadow: 0 1px 0 rgba(0,0,0,.35); }
-.bar--black .lb { font-size: clamp(10px, 3.2cqh, 22px); text-align: center; line-height: 1.05; }
+.bar--black .lb { font-size: clamp(12px, 3.2cqh, 22px); text-align: center; line-height: 1.05; }
 .star-badge { width: clamp(14px, 4cqh, 26px); height: clamp(14px, 4cqh, 26px); color: var(--color-accent); filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
 
 /* 피아노 건반 */
@@ -373,7 +412,7 @@ input, textarea { font-family: var(--font-body); color: var(--color-text-main); 
 .key--white::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 1.4cqh; height: 1.6cqh; border-radius: var(--radius-pill); background: var(--c); }
 .key--black { z-index: 2; color: #fff; background: linear-gradient(#5b5470, #2f2a40); border-radius: 0 0 9px 9px; box-shadow: 0 4px 0 #1c1828; padding-bottom: 3cqh; }
 .key .lb { font-size: clamp(11px, 4.2cqh, 28px); margin-bottom: 2cqh; }
-.key--black .lb { font-size: clamp(9px, 3cqh, 18px); text-align: center; line-height: 1.05; margin-bottom: 0; }
+.key--black .lb { font-size: clamp(12px, 3cqh, 18px); text-align: center; line-height: 1.05; margin-bottom: 0; }
 .is-hit { transform: translateY(0.8cqh) scale(.97); filter: brightness(1.15); }
 .key--white.is-hit { background: linear-gradient(#fff4e6, #ffe8cc); }
 .is-off { opacity: .35; }
@@ -387,6 +426,11 @@ body.is-inst-full .score-box .line { border-top: 0; }
 body.is-inst-full .progress-strip .meter,
 body.is-inst-full .progress-strip .progress-text { display: none; }
 body.is-inst-full .play-area { min-height: 0; }
+/* 크게 보기: 만들기 칸에는 리듬 카드만 남겨 악기를 넓힌다 */
+body.is-inst-full .maker { grid-template-columns: auto; }
+body.is-inst-full .maker .req-btn,
+body.is-inst-full .maker .rec,
+body.is-inst-full .maker .tools { display: none; }
 body.is-inst-full .stage { width: min(100cqw, 260cqh); aspect-ratio: 2.6 / 1; }
 body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); box-shadow: 0 3px 0 var(--color-accent-strong); }
 
@@ -480,6 +524,8 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
 .steps li { position: relative; margin: var(--space-sm) 0; padding-left: 44px; counter-increment: s; }
 .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--color-primary); color: #fff; font-family: var(--font-head); }
 
+.credits { margin: var(--space-sm) 0 0; font-size: var(--fs-micro); color: var(--color-text-sub); }
+
 /* 알림 */
 #toast {
   position: fixed; top: var(--space-md); left: 50%; z-index: var(--z-toast); transform: translate(-50%, -12px);
@@ -503,6 +549,8 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
   .top-right #btnDown span { display: inline; }
   .rcard { width: 50px; }
   .rcard__word { font-size: 13px; }
+  #btnInstFull span { display: none; }
+  #btnInstFull { padding: 0 var(--space-sm); min-width: 44px; }
   .tool { min-width: 58px; }
   .tool span { font-size: 12px; }
   .guide { width: 104px; }
@@ -525,15 +573,35 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
   .show-side { width: auto; max-height: 240px; }
   .show-score-wrap { min-height: 480px; }
 }
-@media (max-height: 560px) and (orientation: landscape) {
-  body { overflow: auto; height: auto; }
-  .score-box { height: 46dvh; }
-  .play-area { min-height: 70dvh; }
+/* 폰·폴드 가로처럼 낮은 화면: 만들기 칸 → 또롱이 → 악기 순서로 쌓고, 악기는 화면 폭 가득 (세로 스크롤 허용) */
+@media (max-height: 640px) and (orientation: landscape) {
+  body { overflow-x: hidden; overflow-y: auto; height: auto; }
+  .play-area { flex-wrap: wrap; min-height: 0; }
+  .maker { width: 100%; grid-template-columns: auto auto; justify-content: center; }
+  .guide { width: 100%; flex-direction: row; align-items: center; }
+  .guide .bubble { flex: 1; }
+  .guide .bubble::after { display: none; }
+  .mascot { width: 56px; flex: none; }
+  .mascot::after { bottom: -8px; }
+  .inst-wrap { width: 100%; flex: none; height: 92dvh; }
+  .inst-bar { flex-wrap: wrap; }
+  .stage { width: min(100cqw, 300cqh); aspect-ratio: 2.3 / 1; }
 }
 @media (max-width: 600px) {
   .guide { display: none; }
   .vol { display: none; }
   .logo span { font-size: 18px; }
+}
+/* 화면 높이가 낮은 태블릿(≤900px): 만들기 칸을 조금 촘촘하게 (가사 줄이 켜져도 잘리지 않게) */
+@media (max-height: 900px) {
+  .rcard { min-height: 58px; }
+  .rcard svg { width: 20px; height: 24px; }
+  .req-btn { min-height: 40px; padding: 2px var(--space-sm); font-size: 15px; }
+  .req-btn small { display: none; }
+  .rec-chip { min-height: 56px; padding: 2px; }
+  .rec-chip__notes { height: 20px; }
+  .tool { min-height: 58px; }
+  .maker__group, .maker { row-gap: 3px; }
 }
 @media (hover: hover) and (pointer: fine) {
   .btn:hover, .tool:hover, .rcard:hover { filter: brightness(1.03); }

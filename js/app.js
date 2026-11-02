@@ -77,6 +77,7 @@
     const b = e.target.closest('.btn, .tool');
     if (!b) return;
     b.classList.add('is-pressed');
+    sfx('tap');
     setTimeout(() => b.classList.remove('is-pressed'), 160);
   });
 
@@ -319,11 +320,18 @@
   // ---------- 편집 ----------
   function snapshot() { hist.push(JSON.stringify(work.ms)); if (hist.length > 80) hist.shift(); }
   function changed() { persist(); render(); }
-  const beatWord = b => { const w = Math.floor(b), h = b % 1; return w ? `${w}박${h ? ' 반' : ''}` : '반 박'; };
+  // 박 수를 아이 말로: 1 → 1박, 0.5 → 반 박, 1.5 → 1박 반, 0.25 → ¼박
+  const beatWord = b => {
+    const w = Math.floor(b), f = b - w;
+    if (!f) return `${w}박`;
+    if (f === 0.5) return w ? `${w}박 반` : '반 박';
+    return `${w || ''}${f === 0.25 ? '¼' : '¾'}박`;
+  };
   function afterFill(m) {
     const meas = work.ms[m];
     if (M.beats(meas) < MB()) return { m, k: null };
-    if (m + 1 < M.NM) { sfx('pop'); return firstTarget(m + 1); }
+    sfx('measure');
+    if (m + 1 < M.NM) return firstTarget(m + 1);
     return { m, k: meas.length - 1 };
   }
   function editHit(midi) {
@@ -332,7 +340,9 @@
     if (sel.k !== null) {
       snapshot();
       meas[sel.k] = { d: meas[sel.k].d, p: midi };
+      const wasLast = M.beats(meas) >= MB() && sel.k === meas.length - 1;
       sel = nextTarget(sel);
+      sfx(wasLast && meas.every(n => n.r || n.p != null) ? 'measure' : 'place');
       changed();
       return;
     }
@@ -344,6 +354,7 @@
     }
     snapshot();
     meas.push({ d: pen, p: midi });
+    if (M.beats(meas) < MB()) sfx('place');
     sel = afterFill(sel.m);
     changed();
   }
@@ -368,8 +379,38 @@
     { d: 2, word: '타-아', beat: '2박', draw: 'h' },
     { d: 3, word: '타-아-아', beat: '3박', draw: 'dh' },
     { d: 4, word: '타-아-아-아', beat: '4박', draw: 'w' },
-    { rest: true, d: 1, word: '쉼', beat: '1박 쉬기', draw: 'r' },
+    { pop: 'group', d: 1, word: '티리', beat: '16분 묶음', draw: 'g' },
+    { pop: 'rest', d: 0.5, word: '쉼표', beat: '골라 쓰기', draw: 'r' },
   ];
+  // 누르면 작은 창에서 고르는 카드: 16분음표 묶음(모두 1박)과 쉼표
+  const GROUPS = [
+    { g: [.25, .25, .25, .25], word: '티리티리', sub: '16분음표 4개' },
+    { g: [.5, .25, .25], word: '티-티리', sub: '8분 + 16분 2개' },
+    { g: [.25, .25, .5], word: '티리-티', sub: '16분 2개 + 8분' },
+    { g: [.75, .25], word: '티이-리', sub: '점8분 + 16분' },
+  ];
+  const RESTS = [
+    { d: .5, word: '반 박 쉼', sub: '8분쉼표' },
+    { d: 1, word: '1박 쉼', sub: '4분쉼표' },
+    { d: 2, word: '2박 쉼', sub: '2분쉼표' },
+    { d: 'bar', word: '한 마디 쉼', sub: '온쉼표' },
+  ];
+  // 리듬 모양 그림(빔으로 묶인 작은 음표들)
+  function patIcon(pat, w = 56) {
+    const n = pat.length, gap = (w - 14) / Math.max(1, n - 1 || 1), xs = pat.map((_, i) => 8 + i * (n > 1 ? gap : 0) + (n > 1 ? 0 : (w - 16) / 2));
+    let s = xs.map(x => `<ellipse cx="${x}" cy="30" rx="5" ry="3.8" transform="rotate(-20 ${x} 30)" fill="#2b2541"/><line x1="${x + 4.4}" y1="29" x2="${x + 4.4}" y2="9" stroke="#2b2541" stroke-width="1.6"/>`).join('');
+    if (n > 1) s += `<rect x="${xs[0] + 4}" y="8" width="${xs[n - 1] - xs[0] + 1}" height="3.4" fill="#2b2541"/>`;
+    // 16분음표 둘째 빔
+    for (let i = 0; i < n; i++) if (pat[i] === .25) {
+      const j = i + 1 < n && pat[i + 1] === .25 ? i + 1 : -1;
+      if (j > 0) { s += `<rect x="${xs[i] + 4}" y="13.5" width="${xs[j] - xs[i] + 1}" height="3.4" fill="#2b2541"/>`; i = j; }
+      else s += `<rect x="${xs[i] + (i ? -3 : 4)}" y="13.5" width="7.5" height="3.4" fill="#2b2541"/>`;
+    }
+    pat.forEach((d, i) => { if (d === .75) s += `<circle cx="${xs[i] + 9}" cy="30" r="1.8" fill="#2b2541"/>`; });
+    return `<svg viewBox="0 0 ${w} 40" width="${w}" height="40" aria-hidden="true">${s}</svg>`;
+  }
+  const REST_GLYPH = { .5: '𝄾', 1: '𝄽', 2: '𝄼', bar: '𝄻' };
+  const restIcon = d => `<svg viewBox="0 0 30 40" width="30" height="40" aria-hidden="true"><text x="15" y="${d === 2 || d === 'bar' ? 24 : 31}" text-anchor="middle" font-size="30" font-family="'Noto Music','Segoe UI Symbol',serif" fill="#2b2541">${REST_GLYPH[d]}</text></svg>`;
   function noteIcon(t) {
     const head = hollow => `<ellipse cx="12" cy="30" rx="6.4" ry="4.6" transform="rotate(-20 12 30)" fill="${hollow ? '#fff' : '#2b2541'}" stroke="#2b2541" stroke-width="${hollow ? 2.2 : 1}"/>`;
     const stem = '<line x1="17.8" y1="29" x2="17.8" y2="5" stroke="#2b2541" stroke-width="2"/>';
@@ -379,12 +420,15 @@
     if (t === 'h') return head(true) + stem;
     if (t === 'dh') return head(true) + stem + '<circle cx="25" cy="30" r="2" fill="#2b2541"/>';
     if (t === 'w') return '<ellipse cx="15" cy="22" rx="8" ry="5.4" fill="#fff" stroke="#2b2541" stroke-width="2.6"/>';
+    if (t === 's') return head(false) + stem + '<path d="M17.8 5c1 6 9 8 7 16 0-5-4-8-7-9z" fill="#2b2541"/><path d="M17.8 11c1 6 9 8 7 16 0-5-4-8-7-9z" fill="#2b2541"/>';
+    if (t === 'de') return head(false) + stem + '<path d="M17.8 5c1 6 9 8 7 16 0-5-4-8-7-9z" fill="#2b2541"/><circle cx="25" cy="30" r="2" fill="#2b2541"/>';
+    if (t === 'g') return '<g transform="translate(-1 0) scale(.57 1)">' + patIcon([.25, .25, .25, .25]).replace(/^<svg[^>]*>|<\/svg>$/g, '') + '</g>';
     return `<text x="15" y="31" text-anchor="middle" font-size="30" font-family="'Noto Music','Segoe UI Symbol',serif" fill="#2b2541">𝄽</text>`;
   }
   function renderCards() {
     if (pen > MB()) pen = 1;
     $('#cards').innerHTML = CARDS.map((c, i) => `
-      <button class="rcard ${c.rest ? 'rcard--rest' : ''} ${!c.rest && c.d === pen ? 'is-on' : ''} ${c.d > MB() ? 'is-locked' : ''}" data-i="${i}" aria-label="${c.word} ${c.beat}${c.d > MB() ? ' (이 박자에서는 못 써요)' : ''}">
+      <button class="rcard ${c.pop ? 'rcard--pop' : ''} ${!c.pop && c.d === pen ? 'is-on' : ''} ${!c.pop && c.d > MB() ? 'is-locked' : ''}" data-i="${i}" aria-label="${c.word} ${c.beat}${!c.pop && c.d > MB() ? ' (이 박자에서는 못 써요)' : ''}">
         <svg viewBox="0 0 30 40" aria-hidden="true">${noteIcon(c.draw)}</svg>
         <span class="rcard__word">${c.word}</span><span class="rcard__beat">${c.beat}</span>
       </button>`).join('');
@@ -394,25 +438,9 @@
     if (!b) return;
     const c = CARDS[+b.dataset.i];
     Engine.ensure();
+    if (c.pop) { openCardPop(c.pop, b); return; }
     if (c.d > MB()) { sfx('oops'); toast(`${MB()}/4박자는 한 마디가 ${MB()}박이라 '${c.word}' 카드는 못 써요.`); return; }
     const meas = work.ms[sel.m];
-    if (c.rest) {
-      if (sel.k !== null) {
-        snapshot();
-        meas[sel.k] = { d: meas[sel.k].d, r: 1 };
-        sel = nextTarget(sel);
-        sfx('card');
-        changed();
-        return;
-      }
-      if (MB() - M.beats(meas) < 1) { sfx('oops'); toast('이 마디에는 쉼표가 들어갈 자리가 없어요.'); return; }
-      snapshot();
-      meas.push({ d: 1, r: 1 });
-      sel = afterFill(sel.m);
-      sfx('card');
-      changed();
-      return;
-    }
     pen = c.d;
     renderCards();
     if (sel.k !== null) {
@@ -428,9 +456,83 @@
       return;
     }
     // 고른 리듬을 들려준다
+    sfx('card');
     playNotes([[doMidi(), c.d]], work.inst);
-    say(`'${c.word}' 카드를 골랐어요. 이제 ${M.instById(work.inst).name}을(를) 쳐 봐요!`);
+    say(`'${c.word}' 카드를 골랐어요. 이제 ${josa(M.instById(work.inst).name, '을', '를')} 쳐 봐요!`);
   });
+
+  // 16분음표 묶음·쉼표 고르기 작은 창
+  const cardPop = $('#cardPop');
+  function openCardPop(kind, anchor) {
+    sfx('card');
+    const items = kind === 'group' ? GROUPS : RESTS;
+    cardPop.innerHTML = `<p class="card-pop__title">${kind === 'group' ? '16분음표 묶음 고르기 (모두 1박)' : '쉼표 고르기'}</p>
+      <div class="card-pop__list">${items.map((it, i) => {
+        const locked = kind === 'rest' && it.d !== 'bar' && it.d > MB();
+        return `<button class="card-pop__item" data-kind="${kind}" data-i="${i}" ${locked ? 'disabled' : ''}>${kind === 'group' ? patIcon(it.g) : restIcon(it.d)}<b>${it.word}</b><small>${it.sub}</small></button>`;
+      }).join('')}</div>`;
+    cardPop.hidden = false;
+    const r = anchor.getBoundingClientRect(), pw = cardPop.offsetWidth, ph = cardPop.offsetHeight;
+    cardPop.style.left = Math.max(8, Math.min(innerWidth - pw - 8, r.left)) + 'px';
+    cardPop.style.top = Math.max(8, r.top - ph - 8) + 'px';
+  }
+  function closeCardPop() { cardPop.hidden = true; }
+  document.addEventListener('pointerdown', e => { if (!cardPop.hidden && !e.target.closest('#cardPop') && !e.target.closest('.rcard')) closeCardPop(); }, true);
+  cardPop.addEventListener('click', e => {
+    const b = e.target.closest('.card-pop__item');
+    if (!b) return;
+    closeCardPop();
+    if (b.dataset.kind === 'group') insertGroup(GROUPS[+b.dataset.i]);
+    else insertRest(RESTS[+b.dataset.i]);
+  });
+  // 묶음 넣기: 빈 자리면 뒤에 붙이고, '타'(1박) 음표를 골랐으면 그 자리를 묶음으로 바꾼다
+  function insertGroup(gr) {
+    const meas = work.ms[sel.m];
+    let k0;
+    if (sel.k !== null) {
+      const n = meas[sel.k];
+      if (n.d !== 1) { sfx('oops'); toast('묶음은 1박이에요. 타(1박) 음표를 고르거나 빈 자리를 눌러서 넣어요.'); return; }
+      snapshot();
+      meas.splice(sel.k, 1, ...gr.g.map((d, i) => ({ d, p: i === 0 && !n.r ? n.p : null })));
+      k0 = sel.k;
+    } else {
+      if (MB() - M.beats(meas) < 1) { sfx('oops'); toast(`이 마디에는 ${beatWord(MB() - M.beats(meas))}만 남아서 1박 묶음이 안 들어가요.`); return; }
+      snapshot();
+      k0 = meas.length;
+      meas.push(...gr.g.map(d => ({ d, p: null })));
+    }
+    const blank = meas.findIndex((n, i) => i >= k0 && !n.r && n.p == null);
+    sel = blank >= 0 ? { m: sel.m, k: blank } : afterFill(sel.m);
+    changed();
+    playNotes(gr.g.map(d => [doMidi(), d]), work.inst, work.bpm);
+    if (blank >= 0) showGuide({ text: `'${gr.word}' 리듬이 들어갔어요! 악기를 쳐서 음을 차례로 넣어요.`, target: $('#stage'), extra: [$(`#en${sel.m}_${blank}`)] });
+  }
+  function insertRest(rs) {
+    const meas = work.ms[sel.m];
+    if (rs.d === 'bar') {
+      snapshot();
+      work.ms[sel.m] = [{ d: MB(), r: 1 }];
+      sel = afterFill(sel.m);
+      sfx('card');
+      changed();
+      return;
+    }
+    if (sel.k !== null) {
+      const n = meas[sel.k];
+      if (M.beats(meas) - n.d + rs.d > MB()) { sfx('oops'); toast('이 마디에 들어가기엔 너무 길어요.'); return; }
+      snapshot();
+      meas[sel.k] = { d: rs.d, r: 1 };
+      sel = nextTarget(sel);
+    } else {
+      const left = MB() - M.beats(meas);
+      if (rs.d > left) { sfx('oops'); toast(`이 마디에는 ${beatWord(left)}만 남았어요. 더 짧은 쉼표를 골라요.`); return; }
+      snapshot();
+      meas.push({ d: rs.d, r: 1 });
+      sel = afterFill(sel.m);
+    }
+    sfx('card');
+    changed();
+  }
 
   // 도구
   // 꼭 넣을 리듬: 지금 고른 줄에 한 번에 넣는다 (2/4 는 8마디라 두 줄)
@@ -449,7 +551,7 @@
     req.forEach((r, j) => { work.ms[start + j] = r.map(d => ({ d, p: null })); });
     sel = { m: start, k: 0 };
     changed();
-    sfx('success');
+    sfx('star');
     showGuide({ text: '꼭 넣을 리듬이 들어갔어요! 이제 악기를 쳐서 회색 음표에 음을 넣어요.', target: $('#stage'), extra: [$(`#en${start}_0`)] });
   });
   $('#btnCopyM').addEventListener('click', () => {
@@ -583,8 +685,20 @@
 
   // ---------- 악보 ----------
   const scoreBox = $('#scoreBox');
+  // 악보 아래 글자: 계이름 / 가사 / 둘 다 (기기에 기억, 가사를 처음 쓰면 '둘 다'로)
+  const TEXT_KEY = 'melody-studio.text-mode';
+  let textMode = 'solfa';
+  try { textMode = ['solfa', 'lyrics', 'both'].includes(localStorage.getItem(TEXT_KEY)) ? localStorage.getItem(TEXT_KEY) : 'solfa'; } catch (e) {}
+  const hasLyrics = w => (w.ly || []).some(s => String(s || '').trim());
+  function setTextMode(mode) {
+    textMode = mode;
+    try { localStorage.setItem(TEXT_KEY, mode); } catch (e) {}
+    $$('#textSeg button').forEach(b => b.classList.toggle('is-on', b.dataset.text === mode));
+  }
   function renderScore(root, w, opts) {
-    root.innerHTML = Score.renderAll(w, opts).map((s, L) => `<div class="line" data-l="${L}">${s}</div>`).join('');
+    const text = opts.text || (root === scoreBox ? textMode : hasLyrics(w) ? 'both' : 'solfa');
+    root.classList.toggle('is-tall', text === 'both');
+    root.innerHTML = Score.renderAll(w, Object.assign({ text }, opts)).map((s, L) => `<div class="line" data-l="${L}">${s}</div>`).join('');
   }
   function scrollLineIntoView(root, m) {
     // 크게 보기에서는 이 줄만 보이므로 표시만 바꾼다
@@ -612,7 +726,7 @@
     select(M.beats(work.ms[m]) < MB() ? { m, k: null } : { m, k: work.ms[m].length - 1 });
   });
 
-  // ---------- 진행률·도담이 ----------
+  // ---------- 진행률·또롱이 ----------
   const TIPS = [
     '같은 리듬을 두 번 쓰면 노래가 기억하기 쉬워져요.',
     '이웃한 음으로 차례로 가면 부드럽고, 멀리 뛰면 신나요.',
@@ -668,6 +782,7 @@
     if (!work.num.trim()) return { text: '학번을 써 줘요.', target: $('#inNum'), focus: true };
     if (!work.name.trim()) return { text: '이름을 써 줘요.', target: $('#inName'), focus: true };
     if (c.intent < 10) return { text: '어떤 느낌을 표현했는지 작곡 의도를 써 줘요.', target: $('#btnIntent') };
+    if (!hasLyrics(work) && !lyricOffered) return { id: 'lyrics', text: '노래에 가사를 붙여 볼까요? 가사 단추를 눌러요. 안 써도 괜찮아요!', target: $('#btnLyrics') };
     if (!listened) return { text: '처음부터 들어 보며 고칠 곳이 있는지 찾아봐요.', target: $('#btnPlayAll') };
     return { text: '완성했어요! 노란 완성하고 내기 단추를 눌러요.', target: $('#btnSubmit') };
   }
@@ -735,20 +850,21 @@
     $('#progressText').textContent = pct === 100 ? '완성! 낼 수 있어요' : `완성까지 ${pct}% · 마디 ${c.full}/${M.NM}`;
     const h = nextStep().text;
     if (h !== lastHint) { lastHint = h; say(h); }
-    if (pct === 100 && !wasDone) { confetti(); sfx('success'); }
+    if (pct === 100 && !wasDone) { confetti(); sfx('fanfare'); }
     wasDone = pct === 100;
   }
-  // 도담이를 누르면: 지금 할 일을 말하고 그곳을 가리킨다. 같은 안내를 또 누르면 꿀팁도 하나
-  let lastGuideText = '';
+  // 또롱이를 누르면: 지금 할 일을 말하고 그곳을 가리킨다. 같은 안내를 또 누르면 꿀팁도 하나
+  let lastGuideText = '', lyricOffered = false;
   $('#mascot').addEventListener('click', () => {
-    sfx('pop');
+    sfx('hint');
     $('#mascot').classList.remove('is-calling');
     const step = nextStep();
+    if (step.id === 'lyrics') lyricOffered = true;   // 가사는 선택이라 한 번만 권한다
     if (step.text === lastGuideText) step.text += ' 꿀팁: ' + TIPS[tipI++ % TIPS.length];
-    lastGuideText = nextStep().text;
+    lastGuideText = step.text;
     showGuide(step);
   });
-  // 한동안 아무것도 안 누르면 도담이가 먼저 손짓한다
+  // 한동안 아무것도 안 누르면 또롱이가 먼저 손짓한다
   let lastInput = Date.now(), calling = false;
   ['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, () => {
     lastInput = Date.now();
@@ -868,7 +984,7 @@
     const on = !Engine.metronome.running;
     if (on) {
       metroT0 = Engine.ctx.currentTime + .1;
-      Engine.metronome.start(work.bpm, metroT0);
+      Engine.metronome.start(work.bpm, metroT0, MB());
       const loop = () => {
         if (!Engine.metronome.running) { setBeatDot(-1); return; }
         if (!player) setBeatDot(Math.floor(Math.max(0, Engine.ctx.currentTime - metroT0) / beatSec()) % MB());
@@ -899,6 +1015,7 @@
     $('#reqSub').textContent = MB() === 2 ? '지금 줄부터 두 줄(8마디)에 한 번에' : '지금 줄(4마디)에 한 번에';
     const cnt = `${work.intent.length}/500`;
     $('#intentCount').textContent = cnt;
+    $('#lyricCount').textContent = `${(work.ly || []).filter(s => String(s || '').trim()).length}/${M.LINES}줄`;
     $('#intentCount2').textContent = cnt;
   }
   [['#inTitle', 'title'], ['#inNum', 'num'], ['#inName', 'name'], ['#inIntent', 'intent']].forEach(([id, f]) => {
@@ -975,12 +1092,22 @@
 
   // ---------- 리듬 추천: 고른 마디에 맞는 리듬 3가지 ----------
   const POOL = {
-    4: [[1, 1, 1, 1], [1, 1, 2], [2, 1, 1], [2, 2], [.5, .5, 1, .5, .5, 1], [1.5, .5, 1, 1], [1, .5, .5, 2], [.5, .5, .5, .5, 2], [3, 1], [1.5, .5, 2], [1, 1, 1, -1], [4], [1, -1, 1, 1]],
-    3: [[1, 1, 1], [2, 1], [1, 2], [3], [1.5, .5, 1], [.5, .5, 1, 1], [1, .5, .5, 1], [1, 1, -1], [.5, .5, 2]],
-    2: [[1, 1], [2], [.5, .5, 1], [1.5, .5], [1, .5, .5], [.5, .5, .5, .5], [1, -1]],
+    4: [[1, 1, 1, 1], [1, 1, 2], [2, 1, 1], [2, 2], [.5, .5, 1, .5, .5, 1], [1.5, .5, 1, 1], [.25, .25, .25, .25, 1, 2], [1, .5, .5, 2], [.75, .25, 1, 2], [.5, .5, .5, .5, 2], [3, 1], [1.5, .5, 2], [1, .25, .25, .5, 2], [1, 1, 1, -1], [4], [1, -1, 1, 1]],
+    3: [[1, 1, 1], [2, 1], [1, 2], [3], [1.5, .5, 1], [.25, .25, .25, .25, 2], [.5, .5, 1, 1], [1, .5, .5, 1], [.75, .25, 2], [1, 1, -1], [.5, .5, 2]],
+    2: [[1, 1], [2], [.5, .5, 1], [1.5, .5], [.25, .25, .25, .25, 1], [1, .5, .5], [.75, .25, 1], [.5, .5, .5, .5], [1, -1]],
   };
-  const WORD = { .5: '티', 1: '타', 1.5: '타-이', 2: '타-아', 3: '타-아-아', 4: '타-아-아-아' };
-  const patWord = p => p.map(d => d < 0 ? '쉼' : WORD[d]).join(' ');
+  const WORD = { .25: '리', .5: '티', .75: '티이', 1: '타', 1.5: '타-이', 2: '타-아', 3: '타-아-아', 4: '타-아-아-아' };
+  // 16분음표 묶음은 한 낱말로 읽는다 (티리티리, 티-티리, 티리-티, 티이-리)
+  function patWord(p) {
+    const out = [];
+    for (let i = 0; i < p.length;) {
+      const g = GROUPS.find(gr => gr.g.every((d, j) => p[i + j] === d));
+      if (g) { out.push(g.word); i += g.g.length; continue; }
+      out.push(p[i] < 0 ? '쉼' : WORD[p[i]]);
+      i++;
+    }
+    return out.join(' ');
+  }
   const patOf = meas => meas.map(n => n.r ? -n.d : n.d);
   let recSeed = 0;
   function recommend(m) {
@@ -998,8 +1125,9 @@
   }
   function renderRec() {
     const m = sel.m;
-    $('#rec').innerHTML = `<div class="rec__head"><b>${m + 1}번째 마디 리듬 추천</b><button class="rec__dice" id="recDice" aria-label="다른 리듬 추천">${icon('dice')}<span>다른 추천</span></button></div>
-      <div class="rec__list">${recommend(m).map((r, i) => `<button class="rec-chip" data-rec="${i}"><span class="rec-chip__label">${r.label}</span><span class="rec-chip__notes">${r.p.map(d => `<svg viewBox="0 0 30 40" aria-hidden="true">${noteIcon(d < 0 ? 'r' : { .5: 'e', 1: 'q', 1.5: 'dq', 2: 'h', 3: 'dh', 4: 'w' }[d])}</svg>`).join('')}</span><span class="rec-chip__word">${patWord(r.p)}</span></button>`).join('')}</div>`;
+    $('#rec').innerHTML = `<div class="rec__head"><b>${m + 1}번째 마디 리듬 추천</b></div>
+      <div class="rec__list">${recommend(m).map((r, i) => `<button class="rec-chip" data-rec="${i}"><span class="rec-chip__label">${r.label}</span><span class="rec-chip__notes">${r.p.map(d => `<svg viewBox="0 0 30 40" aria-hidden="true">${noteIcon(d < 0 ? 'r' : { .25: 's', .5: 'e', .75: 'de', 1: 'q', 1.5: 'dq', 2: 'h', 3: 'dh', 4: 'w' }[d])}</svg>`).join('')}</span><span class="rec-chip__word">${patWord(r.p)}</span></button>`).join('')}
+      <button class="rec__dice" id="recDice" aria-label="다른 리듬 추천 보기">${icon('dice')}<span>다른<br>추천</span></button></div>`;
   }
   $('#rec').addEventListener('click', e => {
     if (e.target.closest('#recDice')) { recSeed++; sfx('card'); renderRec(); return; }
@@ -1113,15 +1241,57 @@
       [c.named, '제목·학번·이름을 썼어요', '제목·학번·이름을 모두 써야 해요'],
       [c.intent >= 10, `작곡 의도를 썼어요 (${c.intent}자)`, '작곡 의도를 10자 이상 써야 해요'],
     ];
+    const lyricTip = hasLyrics(work) ? '가사를 붙여서 노래가 됐어요' : '추천: 가사를 붙이면 노래가 돼요 (안 써도 돼요)';
     const ok = items.every(i => i[0]);
     $('#ckList').innerHTML = items.map(([pass, y, n]) => `<li class="${pass ? 'is-ok' : 'is-no'}"><span class="mark">${pass ? '✓' : '!'}</span>${pass ? y : n}</li>`).join('')
-      + `<li class="is-tip"><span class="mark">★</span>${c.endsOnTonic ? `마지막 음이 '${tonic}'라서 끝난 느낌이 나요` : `추천: 마지막 음을 '${tonic}'로 끝내 보세요`}</li>`;
+      + `<li class="is-tip"><span class="mark">★</span>${c.endsOnTonic ? `마지막 음이 '${tonic}'라서 끝난 느낌이 나요` : `추천: 마지막 음을 '${tonic}'로 끝내 보세요`}</li>`
+      + `<li class="is-tip"><span class="mark">★</span>${lyricTip}</li>`;
     $('#btnMp3').disabled = !ok;
     $('#btnPng').disabled = !ok;
     const left = items.filter(i => !i[0]).length;
     $('#submitNote').textContent = ok ? 'MP3 파일과 악보 그림을 모두 저장해서 선생님이 알려 준 곳에 올려요.' : `빨간 항목 ${left}개를 마치면 저장할 수 있어요.`;
   }
   $('#btnSubmit').addEventListener('click', () => { renderChecklist(); $('#saveProg').hidden = true; openModal('#mSubmit'); });
+
+  // ---------- 가사 쓰기 ----------
+  function lyricStatus(L) {
+    const { notes, chars } = M.lyricsFor(work, L);
+    if (!chars) return { cls: '', text: `음표 ${notes}개 · 아직 비어 있어요` };
+    if (chars === notes) return { cls: 'is-ok', text: `음표 ${notes}개 · 글자 ${chars}개 · 딱 맞아요!` };
+    if (chars < notes) return { cls: 'is-tip', text: `음표 ${notes}개 · 글자 ${chars}개 · ${notes - chars}글자 더 쓸 수 있어요` };
+    return { cls: 'is-no', text: `음표 ${notes}개 · 글자 ${chars}개 · ${chars - notes}글자가 남아요` };
+  }
+  function renderLyrics() {
+    $('#lyricLines').innerHTML = Array.from({ length: M.LINES }, (_, L) => {
+      const st = lyricStatus(L);
+      return `<div class="lyric-line">
+        <label for="ly${L}">${L + 1}줄 <small>${L * 4 + 1}~${L * 4 + 4}마디</small></label>
+        <input id="ly${L}" data-l="${L}" maxlength="${M.LYRIC_MAX}" autocomplete="off" value="${esc(work.ly[L] || '')}" placeholder="이 줄의 노랫말을 써요">
+        <span class="lyric-status ${st.cls}" id="lys${L}">${st.text}</span>
+      </div>`;
+    }).join('');
+    setTextMode(textMode);
+  }
+  $('#btnLyrics').addEventListener('click', () => { lyricOffered = true; renderLyrics(); openModal('#mLyrics'); });
+  $('#lyricLines').addEventListener('input', e => {
+    const L = +e.target.dataset.l;
+    if (Number.isNaN(L)) return;
+    work.ly[L] = e.target.value;
+    if (textMode === 'solfa' && e.target.value.trim()) setTextMode('both');
+    const st = lyricStatus(L);
+    const s = $(`#lys${L}`);
+    s.className = 'lyric-status ' + st.cls;
+    s.textContent = st.text;
+    persist();
+    renderInfo();
+    render();
+  });
+  $('#textSeg').addEventListener('click', e => {
+    const b = e.target.closest('[data-text]');
+    if (!b) return;
+    setTextMode(b.dataset.text);
+    render();
+  });
 
   async function saveMp3(suffix) {
     const prog = $('#saveProg'), fill = $('#saveFill'), text = $('#saveText');
@@ -1298,6 +1468,7 @@
       <p>2/4박자는 한 마디에 2박, 3/4박자는 3박, 4/4박자는 4박이에요. <b>박자·빠르기</b> 단추에서 들어 보고 골라요.</p>
       <div class="demo-row">${M.METERS.map(m => `<button class="demo" data-meter-demo="${m}">${icon('play')}<span>${m}/4박자<small>${METER_INFO[m].feel}</small></span></button>`).join('')}</div>
       <p>리듬 카드의 박을 더해서 한 마디를 채워요. 예: <span class="eq">타(1) + 타(1) + 타-아(2) = 4박</span> <span class="eq">타-이(1½) + 티(½) + 타-아(2) = 4박</span></p>
+      <p><b>티리</b> 카드를 누르면 16분음표 묶음(티리티리·티-티리·티리-티·티이-리)을, <b>쉼표</b> 카드를 누르면 여러 길이의 쉼표를 골라 넣을 수 있어요. 묶음은 모두 1박이에요.</p>
       <p>마디가 덜 차면 악보 위에 빨간 숫자(예: 3/4박)가 보여요. 어떤 리듬을 넣을지 모르겠으면 <b>리듬 추천</b>을 눌러 봐요.</p>
       <div class="demo-row">${CARDS.map((c, i) => `<button class="demo" data-card="${i}">${icon('play')}<span>${c.word}<small>${c.beat}</small></span></button>`).join('')}</div>` },
     { tab: '장조와 단조', html: () => `<h3>장조는 밝고, 단조는 슬프거나 신비로워요</h3>
@@ -1316,9 +1487,10 @@
         <li>위쪽 탭에서 <b>악기</b>를, 단추에서 <b>장조·단조</b>와 <b>박자·빠르기</b>를 들어 보고 골라요.</li>
         <li>노란 칸의 <b>회색 음표</b>를 누르고 악기를 쳐서 음을 넣어요.</li>
         <li>빈 마디를 누르고 <b>리듬 추천</b>이나 <b>리듬 카드</b>를 고른 다음 악기를 치면 음표가 들어가요.</li>
-        <li>무엇을 할지 모르겠으면 <b>도담이</b>를 눌러요. 눌러야 할 곳을 반짝이며 알려줘요.</li>
+        <li>무엇을 할지 모르겠으면 <b>또롱이</b>를 눌러요. 눌러야 할 곳을 반짝이며 알려줘요.</li>
         <li>음표를 누르고 악기를 다시 치면 음이 바뀌어요. <b>높게·낮게</b>로 한 칸씩 옮기고, 틀리면 <b>되돌리기</b>를 눌러요.</li>
         <li>음표를 고르고 <b>화음</b>을 누르면 어울리는 음이 함께 쌓여요. 악기를 쳐서 화음 음을 넣거나 빼요.</li>
+        <li>노래로 만들고 싶으면 위쪽 <b>가사</b> 단추를 눌러 줄마다 노랫말을 써요. 안 써도 괜찮아요.</li>
         <li><b>처음부터 듣기</b>로 감상하고, 마음에 안 드는 곳을 고쳐요.</li>
         <li>제목·학번·이름과 <b>작곡 의도</b>를 쓰고, 노란 <b>완성하고 내기</b> 단추로 MP3와 악보 그림을 저장해요.</li>
       </ol>` },

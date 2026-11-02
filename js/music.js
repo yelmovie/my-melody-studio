@@ -5,7 +5,7 @@ window.Music = (() => {
   const BEATS = 4;               // 기본 박자(4/4). 작품마다 work.meter 로 2·3·4 중 고른다
   const METERS = [2, 3, 4];
   const MIN_MIDI = 55, MAX_MIDI = 81;   // 낮은 솔(G3) ~ 높은 라(A5)
-  const DURS = [0.5, 1, 1.5, 2, 3, 4];
+  const DURS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
   // 활동지의 꼭 넣을 리듬(4/4 4마디)을 고른 박자에 맞게 옮긴 것
   //  2/4: 같은 리듬을 반으로 나눠 8마디 / 3/4: 마디마다 한 박씩 줄여 4마디
   const REQS = {
@@ -104,7 +104,25 @@ window.Music = (() => {
   function newWork(meter = BEATS) {
     const ms = Array.from({ length: NM }, () => []);
     reqFor(meter).forEach((r, j) => { ms[j] = r.map(d => ({ d, p: null })); });
-    return { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, key: 'C', inst: 'xylophone', ms };
+    return { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, key: 'C', inst: 'xylophone', ly: Array(LINES).fill(''), ms };
+  }
+
+  // 가사: 줄마다 문장으로 받아 음표(쉼표 제외) 순서대로 한 글자씩 붙인다.
+  // 띄어쓰기는 무시, '-' 는 앞 글자를 길게 부르기(악보에는 '–' 로 표시)
+  const LYRIC_MAX = 80;
+  const lyricChars = text => Array.from(String(text || '').replace(/\s+/g, ''));
+  function lyricsFor(work, L) {
+    const chars = lyricChars(work.ly && work.ly[L]);
+    const map = {};
+    let i = 0, notes = 0;
+    for (let m = L * 4; m < L * 4 + 4 && m < NM; m++) {
+      work.ms[m].forEach((n, k) => {
+        if (n.r) return;
+        notes++;
+        if (i < chars.length) { const ch = chars[i++]; map[`${m}_${k}`] = ch === '-' ? '–' : ch; }
+      });
+    }
+    return { map, notes, chars: chars.length };
   }
   const clampBpm = v => Math.max(40, Math.min(200, Math.round(+v) || 90));
   // 저장된 값이나 불러온 파일을 안전한 모양으로 다듬는다
@@ -129,9 +147,11 @@ window.Music = (() => {
       });
       return out;
     });
+    const ly = Array.from({ length: LINES }, (_, i) => String((Array.isArray(o.ly) && o.ly[i]) || '').replace(/[\r\n]+/g, ' ').slice(0, LYRIC_MAX));
     return {
       v: 4,
       meter,
+      ly,
       title: String(o.title || '').slice(0, 40),
       num: String(o.num || '').slice(0, 12),
       name: String(o.name || '').slice(0, 12),
@@ -177,7 +197,7 @@ window.Music = (() => {
 
   return {
     NM, LINES, BEATS, METERS, MIN_MIDI, MAX_MIDI, DURS, REQ, REQS, KEYS, KEY_ORDER, INSTRUMENTS, SOLFA, COLOR_BY_PC, SHARP_COLOR,
-    meterOf, reqFor, dursFor,
+    meterOf, reqFor, dursFor, lyricsFor, LYRIC_MAX,
     instById, key, pc, degree, solfa, inScale, isTonic, tonicSolfa, spell, sigAcc, displayAcc, staffStep,
     beats, findReq, newWork, normWork, clampBpm, timeline, checks,
   };

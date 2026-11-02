@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>나만의 가락 만들기</title>
-<meta name="description" content="리듬 카드와 실로폰·피아노·바이올린 등 여러 악기로 24마디 가락을 만들고, 악보와 함께 감상하고, MP3와 악보 그림으로 내는 초등 음악 작곡 놀이터">
+<title>또롱이 작곡교실</title>
+<meta name="description" content="음표 친구 또롱이와 함께 리듬 카드와 14가지 악기로 16마디 노래를 만들고, 가사를 붙이고, 악보와 함께 감상하고, MP3와 악보 그림으로 내는 초등 음악 작곡교실">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Music&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
@@ -46,6 +46,7 @@
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-chord" viewBox="0 0 24 24"><ellipse cx="9" cy="18" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="12.5" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="7" rx="3.2" ry="2.4" fill="currentColor" stroke="none"/><path d="M12 18V3"/></symbol>
+    <symbol id="i-lyric" viewBox="0 0 24 24"><path d="M4 6h10M4 11h7M4 16h5"/><path d="M17 17V5l4 1.5"/><circle cx="15" cy="17.5" r="2.5" fill="currentColor"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
     <symbol id="i-new" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></symbol>
     <!-- 악기 종류 아이콘 -->
@@ -59,7 +60,7 @@
 
 <!-- ===== 맨 위: 로고 + 악기 탭 ===== -->
 <header class="topbar">
-  <div class="logo"><svg class="ic logo-ic"><use href="#i-music"/></svg><span>나만의 가락 만들기</span></div>
+  <div class="logo"><svg class="ic logo-ic"><use href="#i-music"/></svg><span>또롱이 작곡교실</span></div>
   <nav class="inst-tabs" id="instTabs" aria-label="악기 고르기"></nav>
   <div class="top-right">
     <label class="vol"><svg class="ic"><use href="#i-volume"/></svg><input type="range" id="vol" min="0" max="100" value="80" aria-label="소리 크기"></label>
@@ -84,6 +85,7 @@
   <input class="field" id="inName" maxlength="12" placeholder="이름" autocomplete="off" aria-label="이름">
   <button class="pill" id="btnKey"><svg class="ic"><use href="#i-key"/></svg><b id="keyName">다장조</b><svg class="ic sm"><use href="#i-down"/></svg></button>
   <button class="pill" id="btnBeat"><svg class="ic"><use href="#i-metro"/></svg><span class="lbl">박자·빠르기</span> <b id="beatName">4/4 · 보통 빠르게</b><svg class="ic sm"><use href="#i-down"/></svg></button>
+  <button class="pill" id="btnLyrics"><svg class="ic"><use href="#i-lyric"/></svg><span class="lbl">가사</span> <b id="lyricCount">0/4줄</b></button>
   <button class="pill" id="btnIntent"><svg class="ic"><use href="#i-chat"/></svg><span class="lbl">작곡 의도</span> <b id="intentCount">0/500</b></button>
 </section>
 
@@ -128,8 +130,8 @@
     </div>
   </div>
   <div class="guide">
-    <p class="bubble" id="bubble" role="status">안녕! 나는 도담이에요.</p>
-    <button class="mascot" id="mascot" aria-label="도담이에게 꿀팁 듣기">
+    <p class="bubble" id="bubble" role="status">안녕! 나는 음표 친구 또롱이에요. 막히면 나를 눌러요!</p>
+    <button class="mascot" id="mascot" aria-label="힌트: 또롱이에게 다음에 할 일 듣기">
       <svg viewBox="0 0 120 140" width="100%" height="100%" aria-hidden="true">
         <path d="M78 18 C96 22 108 34 110 52 C100 42 90 40 80 42 Z" fill="#ffd43b" stroke="#4a3f6b" stroke-width="3" stroke-linejoin="round"/>
         <rect x="74" y="16" width="8" height="66" rx="4" fill="#4a3f6b"/>
@@ -227,6 +229,26 @@
   </div>
 </div>
 
+<div class="modal" id="mLyrics" hidden role="dialog" aria-modal="true" aria-labelledby="mLyricsT">
+  <div class="mcard mcard--wide">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mLyricsT">가사 쓰기 <small class="opt">안 써도 돼요</small></h2>
+    <p class="mdesc">줄마다 노랫말을 쓰면 음표에 한 글자씩 붙어요. 띄어쓰기는 상관없고, <b>-</b> 를 쓰면 앞 글자를 길게 불러요. (예: 나-비야)</p>
+    <div class="lyric-lines" id="lyricLines"></div>
+    <div class="lyric-view">
+      <span>악보 아래 글자</span>
+      <div class="seg" id="textSeg" role="group" aria-label="악보 아래에 보일 글자">
+        <button data-text="solfa">계이름</button>
+        <button data-text="lyrics">가사</button>
+        <button data-text="both">둘 다</button>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn btn--primary" data-close>다 썼어요</button></div>
+  </div>
+</div>
+
+<div class="card-pop" id="cardPop" hidden role="dialog" aria-label="리듬 고르기"></div>
+
 <div class="modal" id="mIntent" hidden role="dialog" aria-modal="true" aria-labelledby="mIntentT">
   <div class="mcard mcard--wide">
     <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
@@ -262,6 +284,7 @@
     <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
     <div class="help-tabs" id="helpTabs" role="tablist"></div>
     <div class="help-page" id="helpPage"></div>
+    <p class="credits">악기·효과음 소리: FluidR3_GM 사운드폰트(Frank Wen, MIT) · MIDI.js Soundfonts 변환본(Benjamin Gleitzman, CC BY 3.0)</p>
     <div class="mfoot">
       <button class="btn" id="helpPrev">이전</button>
       <button class="btn" id="helpNext">다음</button>
