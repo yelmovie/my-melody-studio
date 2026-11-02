@@ -524,6 +524,16 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
 .steps li { position: relative; margin: var(--space-sm) 0; padding-left: 44px; counter-increment: s; }
 .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--color-primary); color: #fff; font-family: var(--font-head); }
 
+/* 폰 세로일 때만 보이는 안내 띠 (화면을 막지 않음) */
+.rotate-chip { display: none; }
+@media (orientation: portrait) and (max-width: 740px) {
+  .rotate-chip {
+    display: block; position: fixed; left: 50%; bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-toast);
+    transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); margin: 0; padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-pill); background: var(--color-text-main); color: #fff; font-family: var(--font-head); font-size: 14px; text-align: center;
+    pointer-events: none; box-shadow: var(--shadow-card);
+  }
+}
 .credits { margin: var(--space-sm) 0 0; font-size: var(--fs-micro); color: var(--color-text-sub); }
 
 /* 알림 */
@@ -602,6 +612,21 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
   .rec-chip__notes { height: 20px; }
   .tool { min-height: 58px; }
   .maker__group, .maker { row-gap: 3px; }
+}
+/* 1280×720·1366×768 같은 낮은 태블릿: 카드 글자를 한 줄로 고정하고 한 단계 더 촘촘하게 */
+@media (max-height: 800px) {
+  .rcard { min-height: 54px; }
+  .rcard__word { white-space: nowrap; font-size: 13px; letter-spacing: -.5px; }
+  .rcard__beat { white-space: nowrap; }
+  .req-btn { min-height: 36px; }
+  .rec-chip { min-height: 44px; }
+  .rec-chip__label { display: none; }
+  .rec-chip__notes { height: 18px; }
+  .rcard svg { height: 18px; }
+  .tool { min-height: 54px; }
+  /* 가사 줄이 있어도 악보 칸 높이는 그대로, 악보 그림을 그 높이에 맞춰 조금 작게 */
+  .score-box.is-tall { height: calc((100cqw - 20px) * .16 + 6px); }
+  .score-box.is-tall .line svg { width: auto; height: calc((100cqw - 20px) * .16); margin-inline: auto; }
 }
 @media (hover: hover) and (pointer: fine) {
   .btn:hover, .tool:hover, .rcard:hover { filter: brightness(1.03); }
