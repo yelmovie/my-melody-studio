@@ -37,6 +37,7 @@ window.Score = (() => {
   const TIMESIG_W = 40;
   const CLEF_W = 60;
   let meterNow = 4;   // 지금 그리는 작품의 한 마디 박 수 (renderLine 에서 정한다)
+  let barsNow = 16;   // 지금 그리는 작품의 곡 길이(마디) — 마침 겹세로줄 자리
   const ACC = { dx: -19, size: 20, dy: { '♯': 3, '♮': 3, '♭': 1 } };
   const REST_SIZE = 48;
   const RESTS = {                                      // y: 쉼표 글자의 기준선 y
@@ -147,7 +148,7 @@ window.Score = (() => {
   }
 
   function barlineSvg(m, xEnd) {
-    if (m !== M.NM - 1) return line(xEnd, TOP, xEnd, BOT, LINE, 1.4, 'bl');
+    if (m !== barsNow - 1) return line(xEnd, TOP, xEnd, BOT, LINE, 1.4, 'bl');
     return line(xEnd - 7, TOP, xEnd - 7, BOT, LINE, 1.4, 'bl')
       + tag('rect', { class: 'bl', x: xEnd - 4, y: TOP, width: 4, height: 4 * SP, fill: LINE });
   }
@@ -371,8 +372,9 @@ window.Score = (() => {
   function renderLine(work, L, opts) {
     const o = Object.assign({ prefix: 'e', editable: false, sel: null, labels: true }, opts || {});
     meterNow = M.meterOf(work);   // layout·measureInfo 가 쓰므로 먼저 정한다
+    barsNow = M.barsOf(work);
     const lay = layout(work, L);
-    const req = M.findReq(work.ms, meterNow);
+    const req = M.findReq(work.ms.slice(0, barsNow), meterNow);
     const h = heightFor(o);
     const mode = textMode(o);
     const ctx = {
@@ -392,7 +394,7 @@ window.Score = (() => {
   }
 
   function renderAll(work, opts) {
-    return Array.from({ length: M.LINES }, (_, L) => renderLine(work, L, opts));
+    return Array.from({ length: M.linesOf(work) }, (_, L) => renderLine(work, L, opts));
   }
 
   return { VIEW, TOP, SP, heightFor, renderLine, renderAll };

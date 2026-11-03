@@ -1,7 +1,11 @@
 // 공통 음악 규칙: 모든 스크립트가 window.Music 을 함께 쓴다 (file:// 에서도 돌도록 모듈 대신 전역)
 window.Music = (() => {
-  const NM = 16;                 // 곡 길이(마디)
-  const LINES = 4;               // 한 줄에 4마디씩 4줄
+  const NM = 16;                 // 악보 칸 수(최대 곡 길이). 실제 곡 길이는 작품마다 work.bars(8 또는 16)
+  const LINES = 4;               // 한 줄에 4마디씩 최대 4줄
+  const BAR_CHOICES = [8, 16];
+  // 이 작품의 곡 길이. 8마디로 줄여도 9~16마디 칸은 지우지 않고 숨겨 둔다
+  const barsOf = w => (w && w.bars === 8 ? 8 : NM);
+  const linesOf = w => barsOf(w) / 4;
   const BEATS = 4;               // 기본 박자(4/4). 작품마다 work.meter 로 2·3·4 중 고른다
   const METERS = [2, 3, 4];
   const MIN_MIDI = 55, MAX_MIDI = 81;   // 낮은 솔(G3) ~ 높은 라(A5)
@@ -101,10 +105,10 @@ window.Music = (() => {
     return -1;
   }
 
-  function newWork(meter = BEATS) {
+  function newWork(meter = BEATS, bars = NM) {
     const ms = Array.from({ length: NM }, () => []);
     reqFor(meter).forEach((r, j) => { ms[j] = r.map(d => ({ d, p: null })); });
-    return { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, key: 'C', inst: 'xylophone', ly: Array(LINES).fill(''), ms };
+    return { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, bars: bars === 8 ? 8 : NM, key: 'C', inst: 'xylophone', ly: Array(LINES).fill(''), ms };
   }
 
   // 가사: 줄마다 문장으로 받아 음표(쉼표 제외) 순서대로 한 글자씩 붙인다.
@@ -115,7 +119,7 @@ window.Music = (() => {
     const chars = lyricChars(work.ly && work.ly[L]);
     const map = {};
     let i = 0, notes = 0;
-    for (let m = L * 4; m < L * 4 + 4 && m < NM; m++) {
+    for (let m = L * 4; m < L * 4 + 4 && m < barsOf(work); m++) {
       work.ms[m].forEach((n, k) => {
         if (n.r) return;
         notes++;
@@ -151,6 +155,7 @@ window.Music = (() => {
     return {
       v: 4,
       meter,
+      bars: o.bars === 8 ? 8 : NM,
       ly,
       title: String(o.title || '').slice(0, 40),
       num: String(o.num || '').slice(0, 12),
@@ -164,7 +169,7 @@ window.Music = (() => {
   }
 
   // 재생용 시간표: beat = 시작 마디(from)부터 센 박, p = 소리 낼 음(쉼표·빈 음은 null)
-  function timeline(work, from = 0, to = NM) {
+  function timeline(work, from = 0, to = barsOf(work)) {
     const out = [], meter = meterOf(work);
     for (let m = from; m < to; m++) {
       let off = 0;
@@ -178,12 +183,13 @@ window.Music = (() => {
 
   // 완성 점검
   function checks(work) {
-    const meter = meterOf(work);
-    const reqAt = findReq(work.ms, meter);
-    const full = work.ms.filter(m => beats(m) === meter).length;
-    const blanks = work.ms.reduce((a, m) => a + m.filter(n => !n.r && n.p == null).length, 0);
+    const meter = meterOf(work), bars = barsOf(work);
+    const ms = work.ms.slice(0, bars);   // 숨겨 둔 9~16마디는 점검하지 않는다
+    const reqAt = findReq(ms, meter);
+    const full = ms.filter(m => beats(m) === meter).length;
+    const blanks = ms.reduce((a, m) => a + m.filter(n => !n.r && n.p == null).length, 0);
     let last = null;
-    for (let m = NM - 1; m >= 0 && last === null; m--) {
+    for (let m = bars - 1; m >= 0 && last === null; m--) {
       for (let k = work.ms[m].length - 1; k >= 0; k--) { const n = work.ms[m][k]; if (!n.r && n.p != null) { last = n.p; break; } }
     }
     return {
@@ -191,12 +197,12 @@ window.Music = (() => {
       endsOnTonic: last !== null && isTonic(last, work.key),
       named: !!(work.title.trim() && work.num.trim() && work.name.trim()),
       intent: work.intent.trim().length,
-      done: reqAt >= 0 && full === NM && blanks === 0,
+      done: reqAt >= 0 && full === bars && blanks === 0,
     };
   }
 
   return {
-    NM, LINES, BEATS, METERS, MIN_MIDI, MAX_MIDI, DURS, REQ, REQS, KEYS, KEY_ORDER, INSTRUMENTS, SOLFA, COLOR_BY_PC, SHARP_COLOR,
+    NM, LINES, BAR_CHOICES, barsOf, linesOf, BEATS, METERS, MIN_MIDI, MAX_MIDI, DURS, REQ, REQS, KEYS, KEY_ORDER, INSTRUMENTS, SOLFA, COLOR_BY_PC, SHARP_COLOR,
     meterOf, reqFor, dursFor, lyricsFor, LYRIC_MAX,
     instById, key, pc, degree, solfa, inScale, isTonic, tonicSolfa, spell, sigAcc, displayAcc, staffStep,
     beats, findReq, newWork, normWork, clampBpm, timeline, checks,

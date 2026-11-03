@@ -315,7 +315,8 @@ window.Exporter = (() => {
     const M = window.Music || {};
     const keyName = M.key ? M.key(w.key).name : str(w.key);
     const instName = M.instById ? M.instById(w.inst).name : str(w.inst);
-    const lines = M.LINES || 6;
+    const bars = M.barsOf ? M.barsOf(w) : 16;
+    const lines = bars / 4;
     const title = str(w.title).trim() || '나만의 가락';
     const author = `${str(w.num)} ${str(w.name)}`.trim();
     const intent = str(w.intent).trim();
@@ -323,10 +324,10 @@ window.Exporter = (() => {
       ['조성', keyName, '#f3f0ff', '#5f3dc4'],
       ['악기', instName, '#e7f5ff', '#1864ab'],
       ['빠르기', '♩ = ' + str(w.bpm || 90), '#ebfbee', '#2b8a3e'],
-      ['', `${M.NM || 16}마디 · ${M.meterOf ? M.meterOf(w) : 4}/4박자`, '#c3fae8', '#087f5b'],
+      ['', `${bars}마디 · ${M.meterOf ? M.meterOf(w) : 4}/4박자`, '#c3fae8', '#087f5b'],
     ];
     const tagText = '🎼 또롱이 작곡교실 제출용';
-    const scoreHead = '🎶 악보', scoreNote = `한 줄에 4마디 · 모두 ${M.NM || 16}마디`;
+    const scoreHead = '🎶 악보', scoreNote = `한 줄에 4마디 · 모두 ${bars}마디`;
     const intentHead = '🎵 작곡 의도와 느낌', intentEmpty = '(작곡 의도를 아직 쓰지 않았어요)';
     const footer = '또롱이 작곡교실 ♪';
     const allText = [tagText, title, '지은이: ' + author, chips.flat().join(''), scoreHead, scoreNote, intentHead, intentEmpty, intent, footer, today(), '악보를 그리지 못했어요'].join('');

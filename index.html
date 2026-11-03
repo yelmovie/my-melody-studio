@@ -215,8 +215,16 @@
 <div class="modal" id="mBeat" hidden role="dialog" aria-modal="true" aria-labelledby="mBeatT">
   <div class="mcard mcard--wide">
     <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
-    <h2 id="mBeatT">박자와 빠르기 고르기</h2>
+    <h2 id="mBeatT">곡 길이·박자·빠르기 고르기</h2>
     <p class="mdesc">먼저 들어 보고 마음에 드는 것을 골라요. 꼭 넣을 리듬은 고른 박자에 맞게 저절로 바뀌어요.</p>
+    <div class="bars-row">
+      <h3 class="key-head">곡 길이 <small>몇 마디 노래를 만들까요?</small></h3>
+      <div class="seg" id="barsSeg" role="group" aria-label="곡 길이">
+        <button data-bars="8">8마디 <small>2줄</small></button>
+        <button data-bars="16">16마디 <small>4줄</small></button>
+      </div>
+      <small class="bars-note" id="barsNote" hidden>2/4박자는 꼭 넣을 리듬이 8마디라 16마디로만 만들어요.</small>
+    </div>
     <h3 class="key-head">박자 <small>한 마디에 몇 박을 셀까요?</small></h3>
     <div class="meter-cards" id="meterCards"></div>
     <h3 class="key-head">빠르기 <small>누르면 꼭 넣을 리듬을 그 빠르기로 들려줘요</small></h3>
@@ -323,6 +331,7 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <p class="rotate-chip" role="status">화면을 가로로 돌리면 악보와 악기를 크게 볼 수 있어요</p>
 <div id="confetti" aria-hidden="true"></div>
+<small class="credit-mark">© 2026 옐샘</small>
 
 <script src="js/music.js"></script>
 <script src="js/engine.js"></script>
