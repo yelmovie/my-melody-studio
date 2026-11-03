@@ -8,9 +8,9 @@
   --color-primary: #6741d9;
   --color-primary-strong: #5233b5;
   --color-primary-soft: #f1ecff;
-  --color-accent: #ffd43b;
-  --color-accent-strong: #f0b400;
-  --color-accent-ink: #4d3800;
+  --color-accent: #63e6be;
+  --color-accent-strong: #12b886;
+  --color-accent-ink: #073b30;
   --color-text-main: #2b2541;
   --color-text-sub: #5f5878;
   --color-text-inverse: #ffffff;       /* 진한 바탕 위 글자 */
@@ -22,20 +22,20 @@
   --color-wrong-strong: #b02525;       /* 빨간 단추 아래 두께 */
   --color-wrong-soft: #fff5f5;
   --color-wrong-border: #ffc9c9;
-  --color-warning: #e8590c;
-  --color-tip-soft: #fff9db;
-  --color-tip-border: #ffec99;
-  --color-tip-ink: #8a6d00;            /* 도움말 바탕 위 작은 글자 */
-  --color-tip-strong: #b07800;         /* 가사 '조금 더' 상태 글자 */
-  --color-req: #fff3bf;
+  --color-warning: #1c7ed6;
+  --color-tip-soft: #e6fcf5;
+  --color-tip-border: #96f2d7;
+  --color-tip-ink: #0b6b52;            /* 도움말 바탕 위 작은 글자 */
+  --color-tip-strong: #0ca678;         /* 가사 '조금 더' 상태 글자 */
+  --color-req: #c3fae8;
   --color-req-border: var(--color-accent-strong);
-  --color-req-icon: #e67700;
+  --color-req-icon: #0ca678;
   --color-playing: #d0ebff;
   --color-playing-ink: #1971c2;        /* 연주 중 음표 */
 
   /* 색: 바탕·면 */
   --color-bg-dot: #ece4ff;
-  --color-bg-dot-accent: #fff0bf;
+  --color-bg-dot-accent: #c3fae8;
   --color-surface-tint: #f7f4ff;       /* 악기 탭·도구·감상실 악기 단추 */
   --color-surface-option: #faf8ff;     /* 고르는 칸(박자·빠르기·작품·조·데모·추천·받기) */
   --color-surface-muted: #f4f1fb;      /* 닫기·도우미 탭 */
@@ -43,20 +43,20 @@
   --color-scrim: rgba(15, 23, 42, .5); /* 모달 뒤 어둡게 */
   --color-button-edge: #ddd3f7;
   --color-input-line: #d9ccff;
-  --color-highlight-soft: #fff4e6;     /* 고른 구간 편집 띠 */
-  --color-highlight-ink: #c25e00;
+  --color-highlight-soft: #e6fcf5;     /* 고른 구간 편집 띠 */
+  --color-highlight-ink: #087f5b;
 
   /* 색: 리듬 카드 */
   --color-card-top: #ffffff;
   --color-card-bottom: #faf7ff;
   --color-card-rest-bottom: #f5fbff;
-  --color-card-pop-bottom: #fff8e1;
+  --color-card-pop-bottom: #e6fcf5;
 
   /* 색: 악보 */
-  --color-paper: #fffdf8;
-  --color-score-border: #f6ecd6;
-  --color-score-line: #efe3cb;
-  --color-lyric-playing: var(--color-warning);
+  --color-paper: #fbfefd;
+  --color-score-border: #d3f0e6;
+  --color-score-line: #d9ece6;
+  --color-lyric-playing: #0ca678;
   --color-progress-start: #9775fa;
   --color-beat-dot: #e9e3fb;
 
@@ -65,7 +65,7 @@
   --color-guide-ring-soft: var(--color-primary);
 
   /* 색: 악기 (실로폰 음판 색은 JS 가 --c 로 넣는다) */
-  --color-inst-bg-end: #fff6e6;
+  --color-inst-bg-end: #ebfbee;
   --color-bar-default: #888888;
   --color-bar-black: #4c6ef5;
   --color-key-white-top: #ffffff;
@@ -75,13 +75,13 @@
   --color-key-black-top: #5b5470;
   --color-key-black-bottom: #2f2a40;
   --color-key-black-edge: #1c1828;
-  --color-key-hit-top: #fff4e6;
-  --color-key-hit-bottom: #ffe8cc;
+  --color-key-hit-top: #e6fcf5;
+  --color-key-hit-bottom: #c3fae8;
 
   /* 색: 감상실 바탕 */
   --color-show-dot: #e5dbff;
   --color-show-bg-start: #f8f4ff;
-  --color-show-bg-end: #fff8e6;
+  --color-show-bg-end: #e6fcf5;
 
   /* 색: 소리 크기 막대 */
   --color-range-track: var(--color-border-soft);

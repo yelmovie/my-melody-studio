@@ -320,10 +320,10 @@ window.Exporter = (() => {
     const author = `${str(w.num)} ${str(w.name)}`.trim();
     const intent = str(w.intent).trim();
     const chips = [
-      ['조성', keyName, '#ffe3e3', '#c92a2a'],
+      ['조성', keyName, '#f3f0ff', '#5f3dc4'],
       ['악기', instName, '#e7f5ff', '#1864ab'],
       ['빠르기', '♩ = ' + str(w.bpm || 90), '#ebfbee', '#2b8a3e'],
-      ['', `${M.NM || 16}마디 · ${M.meterOf ? M.meterOf(w) : 4}/4박자`, '#fff3bf', '#a15c00'],
+      ['', `${M.NM || 16}마디 · ${M.meterOf ? M.meterOf(w) : 4}/4박자`, '#c3fae8', '#087f5b'],
     ];
     const tagText = '🎼 또롱이 작곡교실 제출용';
     const scoreHead = '🎶 악보', scoreNote = `한 줄에 4마디 · 모두 ${M.NM || 16}마디`;
@@ -365,10 +365,10 @@ window.Exporter = (() => {
     const H = MG + HH + 28 + SCH + 28 + ICH + 24 + 70;
     canvas.height = H;   // 크기를 바꾸면 그리기 설정이 초기화된다
 
-    ctx.fillStyle = '#fff9ec'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f3fbf8'; ctx.fillRect(0, 0, W, H);
     // 바탕 장식 점
-    [[30, 40, 10, '#ffd8a8'], [W - 28, 90, 8, '#a5d8ff'], [24, H * 0.45, 9, '#b2f2bb'], [W - 26, H * 0.62, 10, '#ffc9c9'],
-      [30, H - 60, 8, '#d0bfff'], [W - 32, H - 34, 9, '#ffec99']].forEach(([x, y, r, c]) => {
+    [[30, 40, 10, '#c3fae8'], [W - 28, 90, 8, '#a5d8ff'], [24, H * 0.45, 9, '#b2f2bb'], [W - 26, H * 0.62, 10, '#d0bfff'],
+      [30, H - 60, 8, '#d0bfff'], [W - 32, H - 34, 9, '#96f2d7']].forEach(([x, y, r, c]) => {
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
     });
     ctx.textBaseline = 'middle';
@@ -377,24 +377,24 @@ window.Exporter = (() => {
     let y = MG;
     card(ctx, MG, y, CW, HH, '#ffffff');
     ctx.save(); rr(ctx, MG, y, CW, HH, 34); ctx.clip();
-    ctx.fillStyle = '#ffe8cc'; ctx.fillRect(MG, y, CW, 14);
+    ctx.fillStyle = '#c3fae8'; ctx.fillRect(MG, y, CW, 14);
     ctx.restore();
     ctx.font = F(58);
-    [['♪', MG + 80, y + 130, '#ffc9c9'], ['♫', MG + CW - 90, y + 120, '#a5d8ff'], ['♪', MG + CW - 170, y + 250, '#b2f2bb'], ['♬', MG + 150, y + 260, '#ffe066']]
+    [['♪', MG + 80, y + 130, '#d0bfff'], ['♫', MG + CW - 90, y + 120, '#a5d8ff'], ['♪', MG + CW - 170, y + 250, '#b2f2bb'], ['♬', MG + 150, y + 260, '#96f2d7']]
       .forEach(([g, x, yy, c]) => { ctx.fillStyle = c; ctx.textAlign = 'center'; ctx.fillText(g, x, yy); });
 
     ctx.textAlign = 'center';
     ctx.font = F(26);
     const tagW = ctx.measureText(tagText).width + 44;
-    rr(ctx, W / 2 - tagW / 2, y + 34, tagW, 46, 23); ctx.fillStyle = '#fff4e6'; ctx.fill();
-    ctx.fillStyle = '#d9480f'; ctx.fillText(tagText, W / 2, y + 58);
+    rr(ctx, W / 2 - tagW / 2, y + 34, tagW, 46, 23); ctx.fillStyle = '#e6fcf5'; ctx.fill();
+    ctx.fillStyle = '#087f5b'; ctx.fillText(tagText, W / 2, y + 58);
 
     let tfs = 78;
     ctx.font = F(tfs, true);
     while (tfs > 40 && ctx.measureText(title).width > CW - 360) { tfs -= 2; ctx.font = F(tfs, true); }
-    ctx.fillStyle = '#5c3d2e'; ctx.fillText(title, W / 2, y + 140);
+    ctx.fillStyle = '#2b2541'; ctx.fillText(title, W / 2, y + 140);
 
-    ctx.font = F(36); ctx.fillStyle = '#7c6a58';
+    ctx.font = F(36); ctx.fillStyle = '#5f5878';
     ctx.fillText('지은이: ' + (author || '—'), W / 2, y + 212);
 
     // 정보 칩
@@ -418,35 +418,35 @@ window.Exporter = (() => {
 
     // 악보 카드
     card(ctx, MG, y, CW, SCH, '#ffffff');
-    ctx.textAlign = 'left'; ctx.font = F(36, true); ctx.fillStyle = '#5c3d2e';
+    ctx.textAlign = 'left'; ctx.font = F(36, true); ctx.fillStyle = '#2b2541';
     ctx.fillText(scoreHead, MG + P, y + P + 18);
-    ctx.textAlign = 'right'; ctx.font = F(24); ctx.fillStyle = '#a08c78';
+    ctx.textAlign = 'right'; ctx.font = F(24); ctx.fillStyle = '#8a82a6';
     ctx.fillText(scoreNote, MG + P + SW, y + P + 20);
     imgs.forEach((img, i) => {
       const sy = y + P + 56 + i * (SH + GAP);
       if (img) { ctx.drawImage(img, MG + P, sy, SW, SH); return; }
-      rr(ctx, MG + P, sy + 8, SW, SH - 16, 20); ctx.fillStyle = '#faf6ef'; ctx.fill();
-      ctx.textAlign = 'center'; ctx.font = F(28); ctx.fillStyle = '#b8a48e';
+      rr(ctx, MG + P, sy + 8, SW, SH - 16, 20); ctx.fillStyle = '#f3fbf8'; ctx.fill();
+      ctx.textAlign = 'center'; ctx.font = F(28); ctx.fillStyle = '#a9a3c0';
       ctx.fillText(`${i + 1}줄 · 악보를 그리지 못했어요`, W / 2, sy + SH / 2);
     });
     y += SCH + 28;
 
     // 작곡 의도 카드
-    card(ctx, MG, y, CW, ICH, '#fffdf6', '#f6c177');
-    ctx.textAlign = 'left'; ctx.font = F(36, true); ctx.fillStyle = '#5c3d2e';
+    card(ctx, MG, y, CW, ICH, '#fbfefd', '#96f2d7');
+    ctx.textAlign = 'left'; ctx.font = F(36, true); ctx.fillStyle = '#2b2541';
     ctx.fillText(intentHead, MG + P, y + P + 18);
     const ty = y + P + 60;
-    ctx.strokeStyle = '#f3e3c3'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#d9ece6'; ctx.lineWidth = 2;
     textLines.forEach((_, i) => {
       const ly = ty + (i + 1) * LH - 4;
       ctx.beginPath(); ctx.moveTo(MG + P, ly); ctx.lineTo(MG + P + SW, ly); ctx.stroke();
     });
-    ctx.font = F(TFS); ctx.fillStyle = intent ? '#4a3f35' : '#b8a48e';
+    ctx.font = F(TFS); ctx.fillStyle = intent ? '#2b2541' : '#a9a3c0';
     textLines.forEach((t, i) => ctx.fillText(t, MG + P + 10, ty + i * LH + LH / 2));
     y += ICH + 24;
 
     // 바닥글
-    ctx.font = F(26); ctx.fillStyle = '#a08c78';
+    ctx.font = F(26); ctx.fillStyle = '#8a82a6';
     ctx.textAlign = 'left'; ctx.fillText(today(), MG + 12, y + 30);
     ctx.textAlign = 'right'; ctx.fillText(footer, W - MG - 12, y + 30);
 

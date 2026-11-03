@@ -156,7 +156,7 @@ window.Score = (() => {
     const meas = info.meas, b = M.beats(meas);
     let s = text(String(m + 1), { class: 'mn', x: mx + 8, y: 24, 'font-family': UI_FONT, 'font-size': 11, fill: '#999' });
     if (info.reqStart) {
-      s += text('⭐ 꼭 넣을 리듬', { class: 'req', x: mx + 24, y: 24, 'font-family': UI_FONT, 'font-size': 12, 'font-weight': 'bold', fill: '#e67700' });
+      s += text('⭐ 꼭 넣을 리듬', { class: 'req', x: mx + 24, y: 24, 'font-family': UI_FONT, 'font-size': 12, 'font-weight': 'bold', fill: '#0ca678' });
     }
     if (info.editable && b > 0 && b < meterNow) {
       s += text(`${fmtBeats(b)}/${meterNow}박`, { class: 'cnt', x: mx + mw - 8, y: 24, 'text-anchor': 'end', 'font-family': UI_FONT, 'font-size': 12, 'font-weight': 'bold', fill: '#f03e3e' });
@@ -311,7 +311,7 @@ window.Score = (() => {
   function selBoxSvg(ev, keyId, extra) {
     const wide = !ev.n.r && !ev.ghost && M.displayAcc(ev.n.p, keyId);
     const x = ev.x - (wide ? 28 : 14);
-    return tag('rect', { class: 'selbox', x, y: 20, width: ev.x + 14 - x, height: 138 + extra, rx: 7, fill: '#ffd8a8', stroke: '#ff922b', 'stroke-width': 2 });
+    return tag('rect', { class: 'selbox', x, y: 20, width: ev.x + 14 - x, height: 138 + extra, rx: 7, fill: '#c3fae8', stroke: '#12b886', 'stroke-width': 2 });
   }
 
   function noteSvg(ev, m, ctx) {
@@ -329,7 +329,7 @@ window.Score = (() => {
   // 다음 음표가 들어갈 자리(지금까지 채운 음표 폭 바로 뒤)
   function cursorSvg(meas, mx, lay) {
     const x = mx + NOTE_PAD_L + lay.slots(meas).reduce((a, w) => a + w, 0) * lay.scale;
-    return tag('rect', { class: 'cursor', x: x - 3, y: TOP - 12, width: 6, height: 4 * SP + 24, rx: 3, fill: '#ff922b', 'pointer-events': 'none' });
+    return tag('rect', { class: 'cursor', x: x - 3, y: TOP - 12, width: 6, height: 4 * SP + 24, rx: 3, fill: '#12b886', 'pointer-events': 'none' });
   }
 
   function measureNotesSvg(m, mx, mw, info, ctx, lay) {
@@ -358,8 +358,8 @@ window.Score = (() => {
   }
 
   function bgFill(info) {
-    if (info.inReq) return '#fff3bf';
-    if (info.selected) return '#ffe8cc';
+    if (info.inReq) return '#c3fae8';
+    if (info.selected) return '#e6fcf5';
     return 'transparent';
   }
 

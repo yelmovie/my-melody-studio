@@ -61,7 +61,7 @@
   function sfx(name) { try { Engine.sfx(name); } catch (e) {} }
   function confetti() {
     const box = $('#confetti');
-    const colors = ['#6741d9', '#ffd43b', '#9775fa', '#69db7c', '#4dabf7', '#ff8787'];
+    const colors = ['#6741d9', '#63e6be', '#9775fa', '#96f2d7', '#4dabf7', '#a5d8ff'];
     for (let i = 0; i < 46; i++) {
       const el = document.createElement('i');
       if (i % 5 === 0) { el.className = 'note'; el.textContent = i % 10 ? '♪' : '♫'; }
@@ -674,7 +674,7 @@
     listened = false;
     changed();
     sfx('success');
-    showGuide({ text: '새 악보예요! 노란 칸 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
+    showGuide({ text: '새 악보예요! ⭐ 칸의 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
   });
   $('#btnInput').addEventListener('click', () => {
     inputOn = !inputOn;
@@ -781,7 +781,7 @@
     const fillBlank = b => isSel(b.m, b.k)
       ? { text: `좋아요! 이제 ${josa(inst, '을', '를')} 쳐서 반짝이는 음표에 음을 넣어요.`, target: stage, extra: [noteEl(b.m, b.k)] }
       : { text: '반짝이는 회색 음표를 눌러요. 그다음 악기를 쳐요.', target: noteEl(b.m, b.k) };
-    if (c.reqAt < 0) return { text: '먼저 ⭐ 꼭 넣을 리듬 단추를 눌러 노란 칸을 만들어요.', target: $('#btnReq') };
+    if (c.reqAt < 0) return { text: '먼저 ⭐ 꼭 넣을 리듬 단추를 눌러 ⭐ 칸을 만들어요.', target: $('#btnReq') };
     const reqBlank = blankIn(c.reqAt, c.reqAt + REQ().length);
     if (reqBlank) return fillBlank(reqBlank);
     const m = work.ms.findIndex(x => M.beats(x) < MB());
@@ -807,7 +807,7 @@
     if (c.intent < 10) return { text: '어떤 느낌을 표현했는지 작곡 의도를 써 줘요.', target: $('#btnIntent') };
     if (!hasLyrics(work) && !lyricOffered) return { id: 'lyrics', text: '노래에 가사를 붙여 볼까요? 가사 단추를 눌러요. 안 써도 괜찮아요!', target: $('#btnLyrics') };
     if (!listened) return { text: '처음부터 들어 보며 고칠 곳이 있는지 찾아봐요.', target: $('#btnPlayAll') };
-    return { text: '완성했어요! 노란 완성하고 내기 단추를 눌러요.', target: $('#btnSubmit') };
+    return { text: '완성했어요! 완성하고 내기 단추를 눌러요.', target: $('#btnSubmit') };
   }
 
   // 가리키기: 반짝이는 테두리 + '여기!' 화살표 (몇 초 뒤 또는 다음 터치에 사라진다)
@@ -1522,7 +1522,7 @@
     { tab: '작곡이 뭐예요?', html: () => `<h3>작곡은 리듬과 가락을 엮는 일이에요</h3>
       <p><span class="eq">리듬(길고 짧음) + 가락(높고 낮음) = 나만의 노래</span></p>
       <p>이 페이지에서는 <b>16마디</b> 노래를 만들어요. 한 줄에 4마디씩, 모두 4줄이에요.</p>
-      <p>꼭 들어가야 하는 <b>노란 칸 리듬</b>이 있어요. ⭐ 단추 하나로 지금 줄에 쏙 들어가요. 먼저 들어 봐요!</p>
+      <p>꼭 들어가야 하는 <b>⭐ 칸 리듬</b>이 있어요. ⭐ 단추 하나로 지금 줄에 쏙 들어가요. 먼저 들어 봐요!</p>
       <div class="demo-row">${demoBtn('req', '꼭 넣을 리듬 듣기', M.reqFor(MB()).map(b => patWord(b)).join(' | '))}</div>` },
     { tab: '박자와 마디', html: () => `<h3>박자는 한 마디에 몇 박을 셀지 정해요</h3>
       <p>2/4박자는 한 마디에 2박, 3/4박자는 3박, 4/4박자는 4박이에요. <b>박자·빠르기</b> 단추에서 들어 보고 골라요.</p>
@@ -1545,14 +1545,14 @@
     { tab: '만드는 순서', html: () => `<h3>이렇게 만들어요</h3>
       <ol class="steps">
         <li>위쪽 탭에서 <b>악기</b>를, 단추에서 <b>장조·단조</b>와 <b>박자·빠르기</b>를 들어 보고 골라요.</li>
-        <li>노란 칸의 <b>회색 음표</b>를 누르고 악기를 쳐서 음을 넣어요.</li>
+        <li>⭐ 칸의 <b>회색 음표</b>를 누르고 악기를 쳐서 음을 넣어요.</li>
         <li>빈 마디를 누르고 <b>리듬 추천</b>이나 <b>리듬 카드</b>를 고른 다음 악기를 치면 음표가 들어가요.</li>
         <li>무엇을 할지 모르겠으면 <b>또롱이</b>를 눌러요. 눌러야 할 곳을 반짝이며 알려줘요.</li>
         <li>음표를 누르고 악기를 다시 치면 음이 바뀌어요. <b>높게·낮게</b>로 한 칸씩 옮기고, 틀리면 <b>되돌리기</b>를 눌러요.</li>
         <li>음표를 고르고 <b>화음</b>을 누르면 어울리는 음이 함께 쌓여요. 악기를 쳐서 화음 음을 넣거나 빼요.</li>
         <li>노래로 만들고 싶으면 위쪽 <b>가사</b> 단추를 눌러 줄마다 노랫말을 써요. 안 써도 괜찮아요.</li>
         <li><b>처음부터 듣기</b>로 감상하고, 마음에 안 드는 곳을 고쳐요.</li>
-        <li>제목·학번·이름과 <b>작곡 의도</b>를 쓰고, 노란 <b>완성하고 내기</b> 단추로 MP3와 악보 그림을 저장해요.</li>
+        <li>제목·학번·이름과 <b>작곡 의도</b>를 쓰고, <b>완성하고 내기</b> 단추로 MP3와 악보 그림을 저장해요.</li>
       </ol>` },
   ];
   let helpI = 0;
