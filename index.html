@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Music&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/extra.css">
+<link rel="stylesheet" href="css/tour.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 </head>
 <body>
@@ -64,6 +66,7 @@
   <nav class="inst-tabs" id="instTabs" aria-label="악기 고르기"></nav>
   <div class="top-right">
     <label class="vol"><svg class="ic"><use href="#i-volume"/></svg><input type="range" id="vol" min="0" max="100" value="80" aria-label="소리 크기"></label>
+    <button class="btn btn--soft" id="btnTour"><svg class="ic"><use href="#i-play"/></svg><span>사용방법 보기</span></button>
     <button class="btn btn--soft" id="btnHelp"><svg class="ic"><use href="#i-help"/></svg><span>작곡 도우미</span></button>
     <button class="btn btn--soft" id="btnShow"><svg class="ic"><use href="#i-headphones"/></svg><span>감상실</span></button>
     <div class="down-wrap">
@@ -249,6 +252,15 @@
 
 <div class="card-pop" id="cardPop" hidden role="dialog" aria-label="리듬 고르기"></div>
 
+<div class="modal" id="mVideo" hidden role="dialog" aria-modal="true" aria-labelledby="mVideoT">
+  <div class="mcard mcard--wide">
+    <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+    <h2 id="mVideoT">사용방법 영상 <small class="opt">약 1분 30초 · 소리 없음</small></h2>
+    <video id="howVideo" class="how-video" src="media/how-to.mp4" poster="media/how-to-poster.jpg" controls playsinline preload="none"></video>
+    <div class="mfoot"><button class="btn btn--primary" data-close>다 봤어요</button></div>
+  </div>
+</div>
+
 <div class="modal" id="mIntent" hidden role="dialog" aria-modal="true" aria-labelledby="mIntentT">
   <div class="mcard mcard--wide">
     <button class="mclose" data-close aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
@@ -286,6 +298,8 @@
     <div class="help-page" id="helpPage"></div>
     <p class="credits">악기·효과음 소리: FluidR3_GM 사운드폰트(Frank Wen, MIT) · MIDI.js Soundfonts 변환본(Benjamin Gleitzman, CC BY 3.0)</p>
     <div class="mfoot">
+      <button class="btn" id="helpTour"><svg class="ic"><use href="#i-play"/></svg><span>사용방법 보기</span></button>
+      <button class="btn" id="helpVideo"><svg class="ic"><use href="#i-image"/></svg><span>영상으로 보기</span></button>
       <button class="btn" id="helpPrev">이전</button>
       <button class="btn" id="helpNext">다음</button>
       <button class="btn btn--primary" data-close>작곡하러 가기</button>
@@ -315,5 +329,6 @@
 <script src="js/score.js"></script>
 <script src="js/export.js"></script>
 <script src="js/app.js"></script>
+<script src="js/tour.js"></script>
 </body>
 </html>

@@ -1,0 +1,58 @@
+/* 또롱이 말하기·음표 반응·완성도 숫자·용어 풀이 (모션 시간은 style.css 의 --dur-* / --ease-* 토큰을 쓴다) */
+
+/* 장식 루프 정리: 로고는 멈추고, 또롱이는 말할 때와 부를 때만 움직인다 */
+.logo-ic { animation: none; }
+.mascot { animation: none; }
+.mascot.is-talking { animation: bob var(--dur-bob-mascot, 3.2s) ease-in-out infinite; }
+.mascot.is-calling { animation: wave var(--dur-wave, .6s) ease-in-out infinite; }
+.bubble { cursor: pointer; min-height: 3.2em; }
+
+/* 음표를 넣으면 그 음표가 살짝 커졌다 돌아온다 */
+.nt.just-placed { transform-box: fill-box; transform-origin: center; animation: notePop var(--dur-base, 250ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)); }
+@keyframes notePop { from { transform: scale(1.35); } to { transform: scale(1); } }
+
+/* 완성도 막대: 너비 대신 transform 으로 늘어난다 */
+.meter__fill { width: 100% !important; transform-origin: left center; transform: scaleX(var(--p, 0)); transition: transform var(--dur-slow, 400ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)); }
+
+/* 용어 풀이 ⓘ: 짝 단추의 오른쪽 위 모서리에 붙는다 (보이는 크기 22px, 누르는 영역 40px) */
+.info-row, .maker, .sel-edit, .inst-bar { position: relative; }
+.term-i {
+  position: absolute; z-index: 3; width: 22px; height: 22px; padding: 0; border: 2px solid var(--color-surface, #fff); border-radius: 50%;
+  background: var(--color-primary, #6741d9); color: var(--color-text-inverse, #fff); font-family: Georgia, serif; font-style: italic; font-weight: bold; font-size: 13px; line-height: 1;
+  display: grid; place-items: center; box-shadow: var(--shadow-soft, 0 2px 8px rgba(83, 60, 160, .08));
+}
+.term-i::after { content: ''; position: absolute; inset: -9px; }
+.term-tip {
+  position: fixed; z-index: 58; width: min(300px, calc(100vw - 24px)); padding: var(--space-sm, 8px) var(--space-md, 16px);
+  border-radius: var(--radius-lg, 18px); background: var(--color-text-main, #2b2541); color: var(--color-text-inverse, #fff);
+  font-size: 15px; line-height: 1.5; word-break: keep-all; box-shadow: var(--shadow-card, 0 6px 20px rgba(83, 60, 160, .12));
+  animation: tipIn var(--dur-base, 250ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.term-tip b { display: block; margin-bottom: 2px; font-family: var(--font-head); font-weight: normal; font-size: 17px; color: var(--color-primary-soft, #f1ecff); }
+@keyframes tipIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 악기 소리 불러오는 중: 숫자 대신 탭 아래 얇은 막대 */
+.inst-tab__load { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 4px; border-radius: var(--radius-pill, 999px); background: var(--color-border-soft, #e7e0fb); overflow: hidden; }
+.inst-tab__load::after { content: ''; position: absolute; inset: 0; background: var(--color-primary, #6741d9); transform-origin: left center; transform: scaleX(var(--p, 0)); transition: transform var(--dur-base, 250ms) var(--ease-out, ease-out); }
+
+/* 사용방법 영상 */
+.how-video { display: block; width: 100%; max-height: calc(var(--app-height, 100dvh) - 220px); border-radius: var(--radius-lg, 18px); background: var(--color-text-main, #2b2541); }
+
+/* 낮은 태블릿에서도 꼭 넣을 리듬 단추는 손가락 높이(40px)를 지킨다. 대신 추천 칸을 4px 줄인다 */
+@media (max-height: 800px) {
+  .req-btn { min-height: 40px; }
+  .rec-chip { min-height: 40px; }
+}
+
+/* 좁은 화면(1024 폭)에서는 카드 글자를 다시 줄바꿈하고, 만들기 칸이 옆으로 넘치지 않게 */
+.maker { overflow-x: hidden; }
+@media (max-width: 1180px) {
+  .rcard__word { white-space: normal; letter-spacing: -.3px; }
+  /* 처음 쓰는 아이가 찾아야 하는 단추라 좁은 화면에서도 글자를 보인다 */
+  .top-right #btnTour span { display: inline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot.is-talking, .mascot.is-calling, .nt.just-placed { animation: none; }
+  .meter__fill { transition: none; }
+}

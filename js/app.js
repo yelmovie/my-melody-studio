@@ -24,8 +24,9 @@
   function readSaved() {
     try { return M.normWork(JSON.parse(localStorage.getItem(STORE) || 'null')); } catch (e) { return null; }
   }
-  let saveTimer = 0;
+  let saveTimer = 0, tempBackup = null;   // tempBackup: 사용방법 시연 중에는 학생 작품을 따로 보관하고 저장하지 않는다
   function persist() {
+    if (tempBackup) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try { localStorage.setItem(STORE, JSON.stringify(work)); } catch (e) { toast('브라우저에 저장하지 못했어요. 내기 전에 MP3로 저장해 두세요.'); }
@@ -127,7 +128,7 @@
     $('#instTabs').innerHTML = M.INSTRUMENTS.map(i => `
       <button class="inst-tab ${i.id === work.inst ? 'is-on' : ''}" data-inst="${i.id}" aria-pressed="${i.id === work.inst}">
         ${icon(instIcon(i))}<span>${i.name}</span>
-        ${loadPct[i.id] != null && loadPct[i.id] < 100 ? `<span class="inst-tab__pct">${loadPct[i.id]}%</span>` : ''}
+        ${loadPct[i.id] != null && loadPct[i.id] < 100 ? `<span class="inst-tab__load" style="--p:${loadPct[i.id] / 100}" role="progressbar" aria-valuenow="${loadPct[i.id]}" aria-valuemin="0" aria-valuemax="100" aria-label="소리 불러오는 중"></span>` : ''}
       </button>`).join('');
   }
   $('#instTabs').addEventListener('click', e => {
@@ -735,15 +736,37 @@
     '앞 줄을 따라 한 뒤 끝 두 마디만 바꿔 봐요.',
   ];
   let tipI = 0, lastHint = '', listened = false;
+  // 또롱이 말하기: 한 글자씩(40ms) 타이핑, 말풍선을 누르면 바로 전체. 말하는 동안만 또롱이가 움직인다
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let typeTimer = 0, typeFull = '';
+  function finishTyping() {
+    clearInterval(typeTimer);
+    typeTimer = 0;
+    $('#bubble').textContent = typeFull;
+    $('#mascot').classList.remove('is-talking');
+  }
   function say(text) {
     const b = $('#bubble');
     // 말풍선이 접혀 있으면(작은 화면 크게 보기) 알림으로 보여 준다
     if (!b.getClientRects().length && document.body.classList.contains('is-inst-full')) toast(text);
-    b.textContent = text;
+    clearInterval(typeTimer);
+    typeFull = text;
+    b.setAttribute('aria-label', text);
     b.classList.remove('is-new');
     void b.offsetWidth;
     b.classList.add('is-new');
+    const chars = Array.from(text);
+    if (reduceMotion.matches || chars.length < 2) { finishTyping(); return; }
+    let i = 0;
+    b.textContent = '';
+    $('#mascot').classList.add('is-talking');
+    typeTimer = setInterval(() => {
+      i++;
+      b.textContent = chars.slice(0, i).join('');
+      if (i >= chars.length) finishTyping();
+    }, 40);
   }
+  $('#bubble').addEventListener('click', () => { if (typeTimer) finishTyping(); });
   // 지금 해야 할 일 한 가지: { text, target(가리킬 곳), extra(같이 반짝일 곳) }
   function nextStep() {
     const c = M.checks(work);
@@ -845,9 +868,9 @@
   function updateStatus() {
     const c = M.checks(work);
     const pct = c.done && c.named && c.intent >= 10 ? 100 : Math.min(99, progressPct(c));
-    $('#meterFill').style.width = pct + '%';
+    $('#meterFill').style.setProperty('--p', pct / 100);
     $('#meter').setAttribute('aria-valuenow', pct);
-    $('#progressText').textContent = pct === 100 ? '완성! 낼 수 있어요' : `완성까지 ${pct}% · 마디 ${c.full}/${M.NM}`;
+    countUp(pct, c.full);
     const h = nextStep().text;
     if (h !== lastHint) { lastHint = h; say(h); }
     if (pct === 100 && !wasDone) { confetti(); sfx('fanfare'); }
@@ -878,13 +901,50 @@
     lastHint = '';
   }, 1000);
 
+  // 완성도 숫자는 바뀔 때마다 이전 값에서 새 값까지 올라간다(Count-up). 최종값은 aria-valuenow 에 바로 들어간다
+  let shownPct = 0, countRaf = 0;
+  function countUp(pct, full) {
+    const label = p => (p === 100 ? '완성! 낼 수 있어요' : `완성까지 ${p}% · 마디 ${full}/${M.NM}`);
+    cancelAnimationFrame(countRaf);
+    // 화면이 가려져 있거나 움직임 줄이기면 바로 최종값
+    if (document.hidden || reduceMotion.matches || shownPct === pct) { shownPct = pct; $('#progressText').textContent = label(pct); return; }
+    const from = shownPct, t0 = performance.now(), dur = 600;
+    const step = now => {
+      const k = dur ? Math.min(1, (now - t0) / dur) : 1;
+      shownPct = Math.round(from + (pct - from) * (1 - Math.pow(1 - k, 3)));
+      $('#progressText').textContent = label(shownPct);
+      if (k < 1) countRaf = requestAnimationFrame(step);
+    };
+    countRaf = requestAnimationFrame(step);
+  }
+
+  // 음표가 새로 들어가거나 바뀌면 그 음표가 살짝 커졌다 돌아온다(Micro-interaction)
+  let lastMs = '';
+  function popChanged() {
+    const now = work.ms.map(m => JSON.stringify(m));
+    const before = lastMs ? JSON.parse(lastMs) : null;
+    lastMs = JSON.stringify(now);
+    if (!before) return;
+    now.forEach((s, m) => {
+      if (s === before[m]) return;
+      const a = JSON.parse(s), b = JSON.parse(before[m]);
+      a.forEach((n, k) => {
+        if (JSON.stringify(n) === JSON.stringify(b[k]) || n.r || n.p == null) return;
+        const g = scoreBox.querySelector(`#en${m}_${k}`);
+        if (g) g.classList.add('just-placed');
+      });
+    });
+  }
+
   function render() {
     fixSel();
     renderScore(scoreBox, work, { prefix: 'e', editable: inputOn, sel, labels: true });
+    popChanged();
     scrollLineIntoView(scoreBox, sel.m);
     renderRec();
     renderSelEdit();
     updateStatus();
+    placeTerms();
   }
 
   // ---------- 재생 (만들기 화면·감상실 공통) ----------
@@ -1546,6 +1606,110 @@
   document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && instFull) setInstFull(false); });
   // 첫 터치에서 오디오를 깨운다 (학교 태블릿 자동재생 정책)
   document.addEventListener('pointerdown', () => { try { Engine.ensure(); } catch (e) {} }, { once: true });
+
+  // ---------- 사용방법 시연(tour.js)이 쓰는 연결 고리 ----------
+  function reloadAll() {
+    lastMs = '';   // 작품을 통째로 바꿀 때는 음표 반짝임을 하지 않는다
+    hist.length = 0;
+    sel = { m: 0, k: work.ms[0].length ? 0 : null };
+    renderInfo();
+    renderCards();
+    renderBeatDots();
+    setInstrument(work.inst, false);
+    refreshKeys();
+    render();
+  }
+  // ---------- 용어 풀이(ⓘ): 누르면 4학년 말로 한 줄 풀이 ----------
+  const TERMS = [
+    ['#btnKey', '조성', '노래의 분위기와 \'집\'이 되는 음(으뜸음)을 정해요. 장조는 밝고, 단조는 슬프거나 신비로워요.'],
+    ['#btnBeat', '박자', '한 마디에 박을 몇 번 셀지 정해요. 4/4박자는 \'하나 둘 셋 넷\'을 세요. 빠르기는 노래가 얼마나 빠른지예요.'],
+    ['#btnReq', '꼭 넣을 리듬', '교과서 활동에 나온 리듬이에요. 이 리듬이 노래 어딘가에 꼭 들어가야 해요.'],
+    ['#btnChord', '화음', '여러 음을 한꺼번에 내는 거예요. 도·미·솔처럼 한 칸씩 건너 쌓으면 잘 어울려요.'],
+    ['#btnScale', '음계·으뜸음', '고른 조성에 어울리는 음만 밝게 보여 줘요. ⭐ 은 으뜸음, 노래를 끝내기 좋은 음이에요.'],
+  ];
+  const tip = document.createElement('div');
+  tip.className = 'term-tip';
+  tip.id = 'termTip';
+  tip.setAttribute('role', 'tooltip');
+  tip.hidden = true;
+  document.body.appendChild(tip);
+  let tipT = 0;
+  function showTerm(btn) {
+    const [, word, text] = TERMS[+btn.dataset.term];
+    tip.innerHTML = `<b>${esc(word)}</b>${esc(text)}`;
+    tip.hidden = false;
+    const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+    tip.style.top = (r.bottom + h + 10 < innerHeight ? r.bottom + 8 : r.top - h - 8) + 'px';
+    btn.setAttribute('aria-describedby', 'termTip');
+    clearTimeout(tipT);
+    tipT = setTimeout(hideTerm, 5000);
+  }
+  function hideTerm() { tip.hidden = true; clearTimeout(tipT); }
+  TERMS.forEach(([sel], i) => {
+    const target = $(sel);
+    if (!target) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'term-i';
+    b.dataset.term = i;
+    b.textContent = 'i';
+    b.setAttribute('aria-label', `${TERMS[i][1]} 뜻 보기`);
+    target.insertAdjacentElement('afterend', b);
+  });
+  // ⓘ 는 흐름에서 빠져 있고(absolute), 짝 단추의 오른쪽 위 모서리에 붙인다
+  function placeTerms() {
+    $$('.term-i').forEach(b => {
+      const t = b.previousElementSibling;
+      const show = !!(t && t.offsetParent);
+      b.hidden = !show;
+      if (!show) return;
+      // 부모 칸 밖으로 잘리지 않게 오른쪽 끝에서 멈춘다
+      const maxLeft = (t.offsetParent ? t.offsetParent.clientWidth : innerWidth) - 32;   // 22px + 누르는 영역 9px
+      b.style.left = Math.min(t.offsetLeft + t.offsetWidth - 14, maxLeft) + 'px';
+      b.style.top = (t.offsetTop - 8) + 'px';
+    });
+  }
+  window.addEventListener('resize', placeTerms);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) placeTerms(); });
+  // 칸 크기가 바뀌면(글꼴이 늦게 불러와질 때 포함) ⓘ 위치를 다시 잡는다
+  const termRO = new ResizeObserver(() => placeTerms());
+  [document.body, ...TERMS.map(([s]) => $(s)).filter(Boolean).flatMap(t => [t, t.parentElement])].forEach(el => termRO.observe(el));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeTerms);
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.term-i');
+    if (b) { e.stopPropagation(); tip.hidden || tip.dataset.for !== b.dataset.term ? (tip.dataset.for = b.dataset.term, showTerm(b)) : hideTerm(); return; }
+    if (!tip.hidden && !e.target.closest('#termTip')) hideTerm();
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTerm(); });
+
+  window.App = {
+    getWork: () => clone(work),
+    isDemo: () => !!tempBackup,
+    // 시연용 작품으로 잠시 바꾼다. 학생 작품은 보관만 하고 저장소에는 쓰지 않는다
+    useTempWork(w) {
+      stopPlay();
+      if (openModalEl) closeModal();
+      if (!tempBackup) tempBackup = JSON.stringify(work);
+      work = M.normWork(w) || M.newWork();
+      reloadAll();
+    },
+    restoreWork() {
+      stopPlay();
+      clearGuide();
+      if (!tempBackup) return;
+      work = M.normWork(JSON.parse(tempBackup)) || M.newWork();
+      tempBackup = null;
+      reloadAll();
+    },
+    stop: () => stopPlay(),
+    say: text => say(text),
+  };
+  const startTour = () => { if (window.Tour) { if (openModalEl) closeModal(); window.Tour.start(); } };
+  $('#btnTour').addEventListener('click', startTour);
+  $('#helpTour').addEventListener('click', startTour);
+  $('#helpVideo').addEventListener('click', () => { openModal('#mVideo'); });
+  $('#mVideo').addEventListener('closed', () => $('#howVideo').pause());
 
   // ---------- 시작 ----------
   renderCards();
