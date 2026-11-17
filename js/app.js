@@ -539,6 +539,7 @@
   // 도구
   // 꼭 넣을 리듬: 지금 고른 줄에 한 번에 넣는다 (2/4 는 8마디라 두 줄)
   $('#btnReq').addEventListener('click', async () => {
+    if (work.reqOff) { renderBeatModal(); openModal('#mBeat'); return; }   // 꺼 두었으면 켜고 끄는 곳을 연다
     const req = REQ(), span = req.length;
     const start = Math.min(Math.floor(sel.m / 4) * 4, NB() - span);
     const old = M.findReq(work.ms, MB());
@@ -670,12 +671,14 @@
     if (!(await ask('악보를 처음부터 새로 만들까요? 제목·학번·이름은 그대로 남아요. 실수로 눌렀다면 되돌리기로 돌아올 수 있어요.', '네, 새로 만들게요'))) return;
     stopPlay();
     snapshot();
-    work.ms = M.newWork(MB()).ms;
-    sel = { m: 0, k: 0 };
+    work.ms = M.newWork(MB(), NB(), work.reqOff).ms;
+    sel = { m: 0, k: work.reqOff ? null : 0 };
     listened = false;
     changed();
     sfx('success');
-    showGuide({ text: '새 악보예요! ⭐ 칸의 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
+    showGuide(work.reqOff
+      ? { text: '새 악보예요! 리듬 카드를 골라 첫 마디부터 채워요.', target: $('#cards'), extra: [$('#stage')] }
+      : { text: '새 악보예요! ⭐ 칸의 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
   });
   $('#btnInput').addEventListener('click', () => {
     inputOn = !inputOn;
@@ -782,8 +785,8 @@
     const fillBlank = b => isSel(b.m, b.k)
       ? { text: `좋아요! 이제 ${josa(inst, '을', '를')} 쳐서 반짝이는 음표에 음을 넣어요.`, target: stage, extra: [noteEl(b.m, b.k)] }
       : { text: '반짝이는 회색 음표를 눌러요. 그다음 악기를 쳐요.', target: noteEl(b.m, b.k) };
-    if (c.reqAt < 0) return { text: '먼저 ⭐ 꼭 넣을 리듬 단추를 눌러 ⭐ 칸을 만들어요.', target: $('#btnReq') };
-    const reqBlank = blankIn(c.reqAt, c.reqAt + REQ().length);
+    if (!c.reqOff && c.reqAt < 0) return { text: '먼저 ⭐ 꼭 넣을 리듬 단추를 눌러 ⭐ 칸을 만들어요.', target: $('#btnReq') };
+    const reqBlank = c.reqAt >= 0 ? blankIn(c.reqAt, c.reqAt + REQ().length) : null;
     if (reqBlank) return fillBlank(reqBlank);
     const m = work.ms.findIndex(x => M.beats(x) < MB());
     if (m >= 0) {
@@ -1073,7 +1076,10 @@
     $('#bpmVal').textContent = work.bpm;
     $('#tempoWord').textContent = tw;
     $('#beatName').textContent = `${MB()}/4 · ${NB()}마디 · ${tw}`;
-    $('#reqSub').textContent = MB() === 2 ? '지금 줄부터 두 줄(8마디)에 한 번에' : '지금 줄(4마디)에 한 번에';
+    const off = work.reqOff === true;
+    $('#btnReq').classList.toggle('is-req-off', off);
+    $('#reqMain').textContent = off ? '꼭 넣을 리듬 꺼짐' : '꼭 넣을 리듬 넣기';
+    $('#reqSub').textContent = off ? '눌러서 다시 켤 수 있어요' : MB() === 2 ? '지금 줄부터 두 줄(8마디)에 한 번에' : '지금 줄(4마디)에 한 번에';
     const cnt = `${work.intent.length}/500`;
     $('#intentCount').textContent = cnt;
     $('#lyricCount').textContent = `${(work.ly || []).filter(s => String(s || '').trim()).length}/${NB() / 4}줄`;
@@ -1114,15 +1120,24 @@
     const shift = doMidi() - 60;
     return ds.map((d, i) => [(i === ds.length - 1 ? 60 : mel[i % mel.length]) + shift, d]);
   }
-  // 2/4박자는 꼭 넣을 리듬이 8마디라서 8마디 곡에서는 쓸 수 없다
-  const meterBlocked = m => m === 2 && NB() === 8;
+  // 2/4박자는 꼭 넣을 리듬이 8마디라서 8마디 곡에서는 쓸 수 없다(꼭 넣을 리듬을 끄면 쓸 수 있다)
+  const reqBlocks24 = () => work.reqOff !== true;
+  const meterBlocked = m => m === 2 && NB() === 8 && reqBlocks24();
   function renderBeatModal() {
     $$('#barsSeg [data-bars]').forEach(b => {
       const n = +b.dataset.bars;
       b.classList.toggle('is-on', n === NB());
-      b.disabled = n === 8 && MB() === 2;
+      b.disabled = n === 8 && MB() === 2 && reqBlocks24();
     });
-    $('#barsNote').hidden = MB() !== 2;
+    $('#barsNote').hidden = MB() !== 2 || !reqBlocks24();
+    $$('#reqSeg [data-req]').forEach(b => {
+      const on = (b.dataset.req === 'off') === (work.reqOff === true);
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on);
+    });
+    $('#reqNote').textContent = work.reqOff
+      ? '지금은 꼭 넣을 리듬 없이 자유롭게 만들어요. 완성 확인에서도 빠져요.'
+      : '교과서 제시 리듬을 노래 어딘가에 꼭 넣어야 완성돼요.';
     $('#meterCards').innerHTML = M.METERS.map(m => `
       <div class="meter-card ${m === MB() ? 'is-on' : ''}">
         <div class="meter-card__sig">${m}<span>4</span></div>
@@ -1137,6 +1152,8 @@
   $('#mBeat').addEventListener('click', async e => {
     const l = e.target.closest('[data-listen]'), p = e.target.closest('[data-meter]'), t = e.target.closest('[data-bpm]'), b = e.target.closest('[data-bars]');
     if (b) { setBars(+b.dataset.bars); return; }
+    const rq = e.target.closest('[data-req]');
+    if (rq) { setReqOff(rq.dataset.req === 'off'); return; }
     if (l) { playNotes(meterPattern(+l.dataset.listen), work.inst, work.bpm); return; }
     if (t) { setBpm(+t.dataset.bpm); renderBeatModal(); playNotes(reqDemo(), work.inst, work.bpm); return; }
     if (!p) return;
@@ -1146,7 +1163,7 @@
     const busy = work.ms.some((meas, i) => meas.some(n => !n.r && n.p != null) || (meas.length && !(req >= 0 && i >= req && i < req + span)));
     if (busy && !(await ask(`${m}/4박자로 바꾸면 악보를 새로 시작해요. 지금 넣은 음표는 지워져요. 바꿀까요?`))) { openModal('#mBeat'); return; }
     work.meter = m;
-    work.ms = M.newWork(m).ms;
+    work.ms = M.newWork(m, NB(), work.reqOff).ms;
     hist.length = 0;
     sel = { m: 0, k: 0 };
     persist();
@@ -1156,13 +1173,43 @@
     render();
     if (!openModalEl) { renderBeatModal(); openModal('#mBeat'); } else renderBeatModal();
     playNotes(meterPattern(m), work.inst, work.bpm);
-    toast(`${m}/4박자로 바꿨어요. 꼭 넣을 리듬도 ${m}/4박자에 맞췄어요.`);
+    toast(work.reqOff ? `${m}/4박자로 바꿨어요.` : `${m}/4박자로 바꿨어요. 꼭 넣을 리듬도 ${m}/4박자에 맞췄어요.`);
   });
   function renderBeatDots() { $('#beatDots').innerHTML = '<i></i>'.repeat(MB()); }
 
+  // 꼭 넣을 리듬 켜고 끄기: 작품(work.reqOff)에 함께 저장돼 MP3로 불러와도 그대로다
+  function setReqOff(off) {
+    if (off === (work.reqOff === true)) return;
+    let cleared = false, grew = false;
+    if (off) {
+      // 음을 하나도 안 넣은 ⭐ 칸은 비워 준다(음을 넣었으면 그대로 둔다)
+      const at = M.findReq(work.ms.slice(0, NB()), MB()), span = REQ().length;
+      if (at >= 0 && !work.ms.slice(at, at + span).some(meas => meas.some(n => !n.r && n.p != null))) {
+        snapshot();
+        for (let j = 0; j < span; j++) work.ms[at + j] = [];
+        cleared = true;
+      }
+      work.reqOff = true;
+    } else {
+      work.reqOff = false;
+      Reflect.deleteProperty(work, 'reqOff');
+      if (MB() === 2 && NB() === 8) { work.bars = 16; grew = true; }
+    }
+    fixSel();
+    lastHint = '';
+    changed();
+    renderInfo();
+    renderBeatModal();
+    updateStatus();
+    toast(off
+      ? (cleared ? '꼭 넣을 리듬을 껐어요. 음을 넣지 않은 ⭐ 칸은 비웠어요.' : '꼭 넣을 리듬을 껐어요. 리듬을 자유롭게 만들어요.')
+      : grew ? '꼭 넣을 리듬을 켰어요. 2/4박자는 꼭 넣을 리듬이 8마디라 16마디로 늘렸어요.'
+        : '꼭 넣을 리듬을 켰어요. ⭐ 단추로 원하는 줄에 넣어요.');
+  }
+
   // 곡 길이: 8마디로 줄여도 9~16마디는 지우지 않고 숨겨 둔다(다시 16마디로 늘리면 그대로 보인다)
   function setBars(n) {
-    if (n === NB() || (n === 8 && MB() === 2)) return;
+    if (n === NB() || (n === 8 && MB() === 2 && reqBlocks24())) return;
     const hidden = n === 8 && work.ms.slice(8).some(meas => meas.some(x => !x.r && x.p != null));
     work.bars = n;
     fixSel();
@@ -1204,7 +1251,7 @@
     const add = (p, label) => { if (p && p.length && !list.some(x => x.p.join() === p.join())) list.push({ p, label }); };
     if (m > 0 && M.beats(work.ms[m - 1]) === meter) add(patOf(work.ms[m - 1]), '앞 마디처럼');
     const reqBars = M.reqFor(meter);
-    add(reqBars[(m + recSeed) % reqBars.length], '꼭 넣을 리듬에서');
+    add(reqBars[(m + recSeed) % reqBars.length], work.reqOff ? '교과서 리듬에서' : '꼭 넣을 리듬에서');
     const src = lineEnd ? ends : pool;
     for (let i = 0; list.length < 3 && i < src.length; i++) add(src[(m * 3 + recSeed * 2 + i) % src.length], lineEnd ? '줄을 마무리' : '새 리듬');
     return list.slice(0, 3);
@@ -1321,7 +1368,7 @@
     const c = M.checks(work);
     const tonic = M.tonicSolfa(work.key);
     const items = [
-      [c.req, '꼭 넣을 리듬 4마디가 들어 있어요', '꼭 넣을 리듬 4마디를 넣어야 해요'],
+      ...(c.reqOff ? [] : [[c.req, '꼭 넣을 리듬 4마디가 들어 있어요', '꼭 넣을 리듬 4마디를 넣어야 해요']]),
       [c.full === NB(), `${NB()}마디를 모두 ${MB()}박으로 채웠어요`, `${NB() - c.full}마디를 더 채워야 해요 (${c.full}/${NB()})`],
       [c.blanks === 0, '모든 음표에 음을 넣었어요', `회색 ? 음표 ${c.blanks}개에 음을 넣어야 해요`],
       [c.named, '제목·학번·이름을 썼어요', '제목·학번·이름을 모두 써야 해요'],
@@ -1331,7 +1378,8 @@
     const ok = items.every(i => i[0]);
     $('#ckList').innerHTML = items.map(([pass, y, n]) => `<li class="${pass ? 'is-ok' : 'is-no'}"><span class="mark">${pass ? '✓' : '!'}</span>${pass ? y : n}</li>`).join('')
       + `<li class="is-tip"><span class="mark">★</span>${c.endsOnTonic ? `마지막 음이 '${tonic}'라서 끝난 느낌이 나요` : `추천: 마지막 음을 '${tonic}'로 끝내 보세요`}</li>`
-      + `<li class="is-tip"><span class="mark">★</span>${lyricTip}</li>`;
+      + `<li class="is-tip"><span class="mark">★</span>${lyricTip}</li>`
+      + (c.reqOff ? '<li class="is-tip"><span class="mark">★</span>꼭 넣을 리듬은 꺼 두었어요 (자유롭게 만들기)</li>' : '');
     $('#btnMp3').disabled = !ok;
     $('#btnPng').disabled = !ok;
     const left = items.filter(i => !i[0]).length;
@@ -1650,7 +1698,7 @@
   const TERMS = [
     ['#btnKey', '조성', '노래의 분위기와 \'집\'이 되는 음(으뜸음)을 정해요. 장조는 밝고, 단조는 슬프거나 신비로워요.'],
     ['#btnBeat', '박자', '한 마디에 박을 몇 번 셀지 정해요. 4/4박자는 \'하나 둘 셋 넷\'을 세요. 빠르기는 노래가 얼마나 빠른지예요.'],
-    ['#btnReq', '꼭 넣을 리듬', '교과서 활동에 나온 리듬이에요. 이 리듬이 노래 어딘가에 꼭 들어가야 해요.'],
+    ['#btnReq', '꼭 넣을 리듬', '교과서 활동에 나온 리듬이에요. 이 리듬이 노래 어딘가에 꼭 들어가야 해요. 필요 없으면 박자 고르기 창에서 끌 수 있어요.'],
     ['#btnChord', '화음', '여러 음을 한꺼번에 내는 거예요. 도·미·솔처럼 한 칸씩 건너 쌓으면 잘 어울려요.'],
     ['#btnScale', '음계·으뜸음', '고른 조성에 어울리는 음만 밝게 보여 줘요. ⭐ 은 으뜸음, 노래를 끝내기 좋은 음이에요.'],
   ];

@@ -105,10 +105,13 @@ window.Music = (() => {
     return -1;
   }
 
-  function newWork(meter = BEATS, bars = NM) {
+  // reqOff: 꼭 넣을 리듬을 쓰지 않는 곡(선생님이 끈 경우). 없으면 예전처럼 꼭 넣는다
+  function newWork(meter = BEATS, bars = NM, reqOff = false) {
     const ms = Array.from({ length: NM }, () => []);
-    reqFor(meter).forEach((r, j) => { ms[j] = r.map(d => ({ d, p: null })); });
-    return { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, bars: bars === 8 ? 8 : NM, key: 'C', inst: 'xylophone', ly: Array(LINES).fill(''), ms };
+    if (!reqOff) reqFor(meter).forEach((r, j) => { ms[j] = r.map(d => ({ d, p: null })); });
+    const w = { v: 4, title: '', num: '', name: '', intent: '', bpm: 90, meter, bars: bars === 8 ? 8 : NM, key: 'C', inst: 'xylophone', ly: Array(LINES).fill(''), ms };
+    if (reqOff) w.reqOff = true;
+    return w;
   }
 
   // 가사: 줄마다 문장으로 받아 음표(쉼표 제외) 순서대로 한 글자씩 붙인다.
@@ -165,6 +168,7 @@ window.Music = (() => {
       key: KEYS[o.key] ? o.key : 'C',
       inst: instById(o.inst).id,
       ms,
+      ...(o.reqOff === true ? { reqOff: true } : {}),
     };
   }
 
@@ -185,7 +189,8 @@ window.Music = (() => {
   function checks(work) {
     const meter = meterOf(work), bars = barsOf(work);
     const ms = work.ms.slice(0, bars);   // 숨겨 둔 9~16마디는 점검하지 않는다
-    const reqAt = findReq(ms, meter);
+    const reqOff = work.reqOff === true;
+    const reqAt = reqOff ? -1 : findReq(ms, meter);
     const full = ms.filter(m => beats(m) === meter).length;
     const blanks = ms.reduce((a, m) => a + m.filter(n => !n.r && n.p == null).length, 0);
     let last = null;
@@ -193,11 +198,11 @@ window.Music = (() => {
       for (let k = work.ms[m].length - 1; k >= 0; k--) { const n = work.ms[m][k]; if (!n.r && n.p != null) { last = n.p; break; } }
     }
     return {
-      req: reqAt >= 0, reqAt, full, blanks,
+      req: reqOff || reqAt >= 0, reqAt, reqOff, full, blanks,
       endsOnTonic: last !== null && isTonic(last, work.key),
       named: !!(work.title.trim() && work.num.trim() && work.name.trim()),
       intent: work.intent.trim().length,
-      done: reqAt >= 0 && full === bars && blanks === 0,
+      done: (reqOff || reqAt >= 0) && full === bars && blanks === 0,
     };
   }
 

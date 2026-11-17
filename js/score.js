@@ -374,7 +374,7 @@ window.Score = (() => {
     meterNow = M.meterOf(work);   // layout·measureInfo 가 쓰므로 먼저 정한다
     barsNow = M.barsOf(work);
     const lay = layout(work, L);
-    const req = M.findReq(work.ms.slice(0, barsNow), meterNow);
+    const req = work.reqOff === true ? -1 : M.findReq(work.ms.slice(0, barsNow), meterNow);
     const h = heightFor(o);
     const mode = textMode(o);
     const ctx = {

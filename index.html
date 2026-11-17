@@ -117,7 +117,7 @@
 <!-- ===== 만들기 도구 + 악기 연주 ===== -->
 <section class="play-area">
   <div class="panel maker">
-    <button class="req-btn" id="btnReq"><svg class="ic"><use href="#i-star"/></svg><span>꼭 넣을 리듬 넣기<small id="reqSub">지금 줄에 한 번에</small></span></button>
+    <button class="req-btn" id="btnReq"><svg class="ic"><use href="#i-star"/></svg><span><span id="reqMain">꼭 넣을 리듬 넣기</span><small id="reqSub">지금 줄에 한 번에</small></span></button>
     <div class="rec" id="rec" aria-label="리듬 추천"></div>
     <div class="maker__group">
       <div class="cards" id="cards" aria-label="리듬 카드"></div>
@@ -224,6 +224,14 @@
         <button data-bars="16">16마디 <small>4줄</small></button>
       </div>
       <small class="bars-note" id="barsNote" hidden>2/4박자는 꼭 넣을 리듬이 8마디라 16마디로만 만들어요.</small>
+    </div>
+    <div class="bars-row">
+      <h3 class="key-head">꼭 넣을 리듬 <small>교과서 제시 리듬을 꼭 넣을까요?</small></h3>
+      <div class="seg" id="reqSeg" role="group" aria-label="꼭 넣을 리듬">
+        <button data-req="on" aria-pressed="true">⭐ 꼭 넣기</button>
+        <button data-req="off" aria-pressed="false">자유롭게 <small>안 넣어도 돼요</small></button>
+      </div>
+      <small class="bars-note" id="reqNote"></small>
     </div>
     <h3 class="key-head">박자 <small>한 마디에 몇 박을 셀까요?</small></h3>
     <div class="meter-cards" id="meterCards"></div>
