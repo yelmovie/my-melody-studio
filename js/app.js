@@ -344,7 +344,7 @@
       meas[sel.k] = { d: meas[sel.k].d, p: midi };
       const wasLast = M.beats(meas) >= MB() && sel.k === meas.length - 1;
       sel = nextTarget(sel);
-      sfx(wasLast && meas.every(n => n.r || n.p != null) ? 'measure' : 'place');
+      if (wasLast && meas.every(n => n.r || n.p != null)) sfx('measure');
       changed();
       return;
     }
@@ -356,7 +356,6 @@
     }
     snapshot();
     meas.push({ d: pen, p: midi });
-    if (M.beats(meas) < MB()) sfx('place');
     sel = afterFill(sel.m);
     changed();
   }
@@ -666,16 +665,28 @@
     $('#btnDel').disabled = !n && !work.ms[sel.m].length && sel.m === 0;
   }
 
-  // 새로 만들기: 악보만 비운다. 되돌리기로 바로 돌아올 수 있다
-  $('#btnNew').addEventListener('click', async () => {
-    if (!(await ask('악보를 처음부터 새로 만들까요? 제목·학번·이름은 그대로 남아요. 실수로 눌렀다면 되돌리기로 돌아올 수 있어요.', '네, 새로 만들게요'))) return;
+  // 새로 만들기: '악보만 새로'(되돌리기 가능) 또는 '처음부터 모두 새로'(다음 친구가 쓸 때)
+  $('#btnNew').addEventListener('click', () => openModal('#mNew'));
+  $('#mNew').addEventListener('click', async e => {
+    const b = e.target.closest('[data-new]');
+    if (!b) return;
+    closeModal();
+    const all = b.dataset.new === 'all';
+    if (all && !(await ask('제목·학번·이름·작곡 의도·가사와 악보를 모두 지우고 처음부터 시작할까요? 지운 곡은 되돌릴 수 없어요. 필요하면 먼저 MP3로 저장해요.', '네, 모두 지울게요'))) return;
     stopPlay();
-    snapshot();
-    work.ms = M.newWork(MB(), NB(), work.reqOff).ms;
+    if (all) {
+      // 박자·곡 길이·꼭 넣을 리듬 설정은 수업 설정이라 그대로 둔다
+      work = M.newWork(MB(), NB(), work.reqOff);
+      reloadAll();
+    } else {
+      snapshot();
+      work.ms = M.newWork(MB(), NB(), work.reqOff).ms;
+    }
     sel = { m: 0, k: work.reqOff ? null : 0 };
     listened = false;
     changed();
     sfx('success');
+    if (all) toast('처음부터 새로 시작해요. 제목·학번·이름도 새로 써요.');
     showGuide(work.reqOff
       ? { text: '새 악보예요! 리듬 카드를 골라 첫 마디부터 채워요.', target: $('#cards'), extra: [$('#stage')] }
       : { text: '새 악보예요! ⭐ 칸의 회색 음표에 음을 넣어 시작해요.', target: $('#stage'), extra: [$('#en0_0')] });
@@ -1690,6 +1701,7 @@
     renderInfo();
     renderCards();
     renderBeatDots();
+    stageBuilt = false;   // 작품을 통째로 바꾸면 악기 모양(음판/건반)이 달라질 수 있어 다시 그린다
     setInstrument(work.inst, false);
     refreshKeys();
     render();

@@ -602,6 +602,9 @@ body.is-inst-full #btnInstFull { background: var(--color-accent); border-color: 
 .mcard h2 { margin: 0 var(--space-xl) var(--space-xs) 0; font-family: var(--font-head); font-weight: normal; font-size: var(--fs-title); color: var(--color-primary); }
 .mclose { position: absolute; top: var(--space-sm); right: var(--space-sm); width: 48px; height: 48px; border: 0; border-radius: 50%; background: var(--color-surface-muted); display: grid; place-items: center; }
 .mdesc { margin: 0 0 var(--space-md); color: var(--color-text-sub); font-size: var(--fs-body); line-height: 1.5; word-break: keep-all; }
+.new-opts { display: grid; gap: var(--space-sm); }
+.new-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; height: auto; min-height: 64px; padding: var(--space-sm) var(--space-md); text-align: left; white-space: normal; }
+.new-opt small { font-family: var(--font-body); font-size: var(--fs-small); color: var(--color-text-sub); }
 .mfoot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-md); }
 .key-group { margin-bottom: var(--space-md); }
 .key-head { margin: 0 0 var(--space-sm); font-family: var(--font-head); font-weight: normal; font-size: var(--fs-btn); }
